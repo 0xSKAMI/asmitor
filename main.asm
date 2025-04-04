@@ -4,8 +4,7 @@ section .data
 
 section .bss
 	input resb 10 
-	input_length resd 1
-	info resb 11
+	info resb 26 
 	fd_out resb 1
 	fd_in  resb 1
 
@@ -27,27 +26,20 @@ _start:
 	mov edx, 10			;read 10 bytes
 	int 0x80			;make system call
 	
+	;jump to space if there is some error
+	cmp eax, 10
+	jge space
+
 	;adding null terminator in the end of file
 	mov byte [input + eax - 1], 0
 
-	;storing eax to input length
-	mov [input_length], eax 
-
-	;unconditional jump to get_length label
+	;jump to exit if input is empty
 	cmp eax, 1
 	jle exit 
 
-	get_length:
-		;printing user's input
-		mov eax, 4			;system_write
-		mov ebx, 1			;std_out
-		mov ecx, input		;user's input
-		mov edx, [input_length]			;bytes to write
-		int 0x80			;make system call
-	
 	;opening file
 	mov eax, 5						;using sys_open
-	mov ebx, input			;giving it filename
+	mov ebx, input			  ;giving it filename
 	mov ecx, 2						;declaring mode permissions
 	int 0x80							;starting inteupt
 
@@ -75,6 +67,34 @@ _start:
 	mov ebx, [fd_in]			;file descriptor
 	int  0x80							;run interrupt
 
+	;label for exit code
 	exit:
 		mov eax, 1					;using sys_exit
 		int 0x80						;run interrupt
+	
+	space:			
+		;printing introduce text
+		mov eax, 4
+		mov ebx, 1
+		mov ecx, introduce 
+		mov edx, 20
+		int 0x80
+
+		;get current program break
+		mov eax, 45
+		xor ebx, ebx
+		int 0x80
+		mov esi, eax
+
+		;Increase heap by 16kb
+		add eax, 16384
+		mov ebx, eax
+		mov eax, 45
+		int 0x80
+
+		;reading user input
+		mov eax, 3			;system_read
+		mov ebx, 0			;std_in
+		mov ecx, esi		;input pointer
+		mov edx, 16384			;read 10 bytes
+		int 0x80			;make system call
