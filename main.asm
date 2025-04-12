@@ -4,25 +4,32 @@ section .data
   
 section .bss  
 	struc	test_type
-		st_dev: resb 8
-		st_ino: resb 8
-		st_mode: resb 8
-		st_nlink: resb 8
-		st_uid: resb 4
-		st_gid: resb 4
-		st_rdev: resb 8
-		st_size: resb 512 
-		st_blksize: resb 8
-		st_blocks: resb 512
-		st_atime: resb 8
-		st_mtime: resb 8
-		st_ctime: resb 8
+		st_dev:     resq 1  ; 8 bytes
+		st_ino:     resq 1  ; 8 bytes
+		st_nlink:   resq 1  ; 8 bytes (often 64-bit on x64)
+		st_mode:    resd 1  ; 4 bytes
+		st_uid:     resd 1  ; 4 bytes
+		st_gid:     resd 1  ; 4 bytes
+		__pad0:     resd 1  ; 4 bytes padding (likely exists)
+		st_rdev:    resq 1  ; 8 bytes
+		st_size:    resq 1  ; 8 bytes
+		st_blksize: resq 1  ; 8 bytes
+		st_blocks:  resq 1  ; 8 bytes
+		st_atime:   resq 1  ; 8 bytes (seconds part of timespec)
+		st_atime_nsec: resq 1 ; 8 bytes (nanoseconds part)
+		st_mtime:   resq 1  ; 8 bytes
+		st_mtime_nsec: resq 1 ; 8 bytes
+		st_ctime:   resq 1  ; 8 bytes
+		st_ctime_nsec: resq 1 ; 8 bytes
+		__unused:   resq 3  ; Reserved space often at the end (3 * 8 bytes)
 	endstruc
-	test_some resb 1024
+	test_type_buffer:
+		istruc test_type
+		iend
 	input resb 10 
 	info resb 26   
 	fd_out resb 1 
-	fd_in  resb 1 
+	fd_in  resq 1 
   
 section .text  
 	global _start
@@ -66,12 +73,13 @@ _start:
  
 	mov rax, 5
 	mov rdi, [fd_in]
-	mov rsi, [test_type]
+	mov rsi, test_type_buffer
+	syscall
 
 	mov rax, 1						;using sys_write
 	mov rdi, 1						;std_out file descriptor
-	mov rsi, [test_type]					;info pointer
-	mov rdx, 26						;charachters to write
+	mov rsi, [test_type_buffer]					;info pointer
+	mov rdx, 1024						;charachters to write
 	syscall							;run interrupt
 
 	;reading from file 
@@ -104,4 +112,3 @@ _start:
 		add rdi, 128			;adding 128 bytes to memory
 		mov rax, 12				;sys_brk
 		syscall						;make system call
-
