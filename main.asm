@@ -27,6 +27,7 @@ section .bss
 		istruc test_type
 		iend
 	input resb 10 
+	size_string resb 21
 	info resb 26   
 	fd_out resb 1 
 	fd_in  resq 1 
@@ -71,15 +72,21 @@ _start:
  
 	mov [fd_in], rax			;store the descriptor
  
-	mov rax, 5
-	mov rdi, [fd_in]
-	mov rsi, test_type_buffer
-	syscall
+	mov rax, 5															;sys_fstat
+	mov rdi, [fd_in]												;file descriptor
+	mov rsi, test_type_buffer								;giving it buffer so it can write in it
+	syscall																	;interrupt
+
+	mov rbx, [test_type_buffer + st_size]
+
+	mov rsi, size_string + 20								;point to end of buffer
+	add byte [rsi], 0
+	dec rsi
 
 	mov rax, 1						;using sys_write
 	mov rdi, 1						;std_out file descriptor
-	mov rsi, [test_type_buffer]					;info pointer
-	mov rdx, 1024						;charachters to write
+	mov rsi, test_type_buffer + st_size				;info pointer
+	mov rdx, 8					;charachters to write
 	syscall							;run interrupt
 
 	;reading from file 
