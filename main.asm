@@ -2,8 +2,8 @@ section .data
 	filename db 'test.txt', 0 ;string + null terminator to mark the end
 	introduce db 'Put file name here: ', 0 ;string + null terminator to mark the end
   
-section .bss  
-	struc	test_type
+section .bss
+	struc	test_type				;declaring test_type structure (we don't give it storage yet)
 		st_dev:     resq 1  ; 8 bytes
 		st_ino:     resq 1  ; 8 bytes
 		st_nlink:   resq 1  ; 8 bytes (often 64-bit on x64)
@@ -23,13 +23,13 @@ section .bss
 		st_ctime_nsec: resq 1 ; 8 bytes
 		__unused:   resq 3  ; Reserved space often at the end (3 * 8 bytes)
 	endstruc
-	test_type_buffer:
+	test_type_buffer:			;giving test_type memory (storage)
 		istruc test_type
 		iend
-	input resb 10 
-	size_string resb 21
-	info resb 26   
-	fd_out resb 1 
+	input resb 10					;buffer to get file name
+	size_string resb 21		;buffer to store file size
+	info resb 26					;buffer to store info program reads from file
+	fd_out resb 1
 	fd_in  resq 1 
   
 section .text  
@@ -77,15 +77,28 @@ _start:
 	mov rsi, test_type_buffer								;giving it buffer so it can write in it
 	syscall																	;interrupt
 
-	mov rbx, [test_type_buffer + st_size]
+	mov rbx, [test_type_buffer + st_size]   ;moving size (in dec) to rbx reg
 
 	mov rsi, size_string + 20								;point to end of buffer
-	add byte [rsi], 0
-	dec rsi
+	
+	tranfer_loop:							;loop to tranform dec to hex
+		mov rax, rbx						;writing dec length to rax
+		xor rdx, rdx						;making rdx 0
+		mov rdi, 10							;giving rdi value of 10
+		div rdi									;devide
+
+		mov byte [rsi], dl			;writing in rsi pointer byte (dl couse of we have only one byte or 8 bits)
+		add byte [rsi], 48			;adding 48, 0 in ascii
+
+		mov rbx, rax						;moving full number to rbx
+
+		dec rsi									;racrease rsi by one
+		cmp rax, 0							;see if there is only 0 in rax reg to end loop
+		jne tranfer_loop				;ending loop in rax is 0
 
 	mov rax, 1						;using sys_write
 	mov rdi, 1						;std_out file descriptor
-	mov rsi, test_type_buffer + st_size				;info pointer
+	mov rsi, size_string + 19		;giving size of file
 	mov rdx, 8					;charachters to write
 	syscall							;run interrupt
 
@@ -93,14 +106,14 @@ _start:
 	mov rax, 0						;using sys_read
 	mov rdi, [fd_in]			;file descriptor
 	mov rsi, info					;info pointer	
-	mov rdx, 26						;charachters to read
+	mov rdx, size_string + 19		;charachters to read
 	syscall							;run interrupt
  
 	;printing result 
 	mov rax, 1						;using sys_write
 	mov rdi, 1						;std_out file descriptor
 	mov rsi, info					;info pointer
-	mov rdx, 26						;charachters to write
+	mov rdx, size_string + 19						;charachters to write
 	syscall							;run interrupt
     
 	; close the file 
