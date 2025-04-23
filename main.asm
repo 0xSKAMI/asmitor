@@ -96,30 +96,36 @@ _start:
 		cmp rax, 0							;see if there is only 0 in rax reg to end loop
 		jne tranfer_loop				;ending loop in rax is 0
 
+	;printing file size
 	mov rax, 1						;using sys_write
 	mov rdi, 1						;std_out file descriptor
 	mov rsi, size_string + 19		;giving size of file
 	mov rdx, 8					;charachters to write
 	syscall							;run interrupt
+	
+	mov rax, [size_string + 19]
+	cmp rax, 26 
+	jg space 
 
-	;reading from file 
-	mov rax, 0						;using sys_read
-	mov rdi, [fd_in]			;file descriptor
-	mov rsi, info					;info pointer	
-	mov rdx, size_string + 19		;charachters to read
-	syscall							;run interrupt
- 
-	;printing result 
-	mov rax, 1						;using sys_write
-	mov rdi, 1						;std_out file descriptor
-	mov rsi, info					;info pointer
-	mov rdx, size_string + 19						;charachters to write
-	syscall							;run interrupt
-    
-	; close the file 
-	mov rax, 3						;using sys_close
-	mov rdi, [fd_in]			;file descriptor
-	syscall								;run interrupt
+	reading:
+		;reading from file 
+		mov rax, 0						;using sys_read
+		mov rdi, [fd_in]			;file descriptor
+		mov rsi, [info]					;info pointer	
+		mov rdx, size_string		;charachters to read
+		syscall							;run interrupt
+	 
+		;printing result 
+		mov rax, 1						;using sys_write
+		mov rdi, 1						;std_out file descriptor
+		mov rsi, [info]					;info pointer
+		mov rdx, size_string						;charachters to write
+		syscall							;run interrupt
+			
+		; close the file 
+		mov rax, 3						;using sys_close
+		mov rdi, [fd_in]			;file descriptor
+		syscall								;run interrupt
  
 	;label for exit code 
 	exit: 
@@ -127,8 +133,16 @@ _start:
 		syscall						;run interrupt
 
 	space:
-		;allocating memory
-		mov rdi, input		;putting 0 in ebx register (making syscall return pointer to)
-		add rdi, 128			;adding 128 bytes to memory
-		mov rax, 12				;sys_brk
-		syscall						;make system call
+		mov rax, 9      ; sys_mmap
+		mov rdi, 0      ; addr
+		mov rsi, [size_string + 19]    ; length
+		mov rdx, 3      ; prot = PROT_READ | PROT_WRITE 
+		mov r10, 34     ; flags = MAP_PRIVATE | MAP_ANONYMOUS
+		mov r8, -1      ; fd = -1
+		mov r9, 0       ; offset
+		syscall
+
+		mov [info], rax
+
+		cmp rax, 0
+		jg reading
