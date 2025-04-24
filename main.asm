@@ -27,7 +27,6 @@ section .bss
 		istruc test_type
 		iend
 	input resb 10					;buffer to get file name
-	size_string resb 21		;buffer to store file size
 	info resb 26					;buffer to store info program reads from file
 	fd_out resb 1
 	fd_in  resq 1 
@@ -77,33 +76,7 @@ _start:
 	mov rsi, test_type_buffer								;giving it buffer so it can write in it
 	syscall																	;interrupt
 
-	mov rbx, [test_type_buffer + st_size]   ;moving size (in dec) to rbx reg
-
-	mov rsi, size_string + 20								;point to end of buffer
-	
-	tranfer_loop:							;loop to tranform dec to hex
-		mov rax, rbx						;writing dec length to rax
-		xor rdx, rdx						;making rdx 0
-		mov rdi, 10							;giving rdi value of 10
-		div rdi									;devide
-
-		mov byte [rsi], dl			;writing in rsi pointer byte (dl couse of we have only one byte or 8 bits)
-		add byte [rsi], 48			;adding 48, 0 in ascii
-
-		mov rbx, rax						;moving full number to rbx
-
-		dec rsi									;racrease rsi by one
-		cmp rax, 0							;see if there is only 0 in rax reg to end loop
-		jne tranfer_loop				;ending loop in rax is 0
-
-	;printing file size
-	mov rax, 1						;using sys_write
-	mov rdi, 1						;std_out file descriptor
-	mov rsi, size_string + 16		;giving size of file
-	mov rdx, 8					;charachters to write
-	syscall							;run interrupt
-	
-	mov rax, [size_string + 19]  ;moving size string number to rax so program cat compare
+	mov rax, [test_type_buffer + st_size]  ;moving size string number to rax so program cat compare
 	cmp rax, 26										;comparing rax and 26 to see if program needs bigger buffer
 	jg space											;jumping to space and giving more space to info buffer there
 
@@ -112,14 +85,14 @@ _start:
 		mov rax, 0						;using sys_read
 		mov rdi, [fd_in]			;file descriptor
 		mov rsi, [info]					;info pointer	
-		mov rdx, size_string		;charachters to read
+		mov rdx, [test_type_buffer + st_size]		;charachters to read
 		syscall							;run interrupt
 	 
 		;printing result 
 		mov rax, 1						;using sys_write
 		mov rdi, 1						;std_out file descriptor
 		mov rsi, [info]					;info pointer
-		mov rdx, size_string						;charachters to write
+		mov rdx, [test_type_buffer + st_size]						;charachters to write
 		syscall							;run interrupt
 			
 		; close the file 
@@ -135,7 +108,7 @@ _start:
 	space:
 		mov rax, 9      ; sys_mmap
 		mov rdi, 0      ; addr
-		mov rsi, [size_string + 17] ; length
+		mov rsi, [test_type_buffer  + st_size] ; length
 		mov rdx, 3      ; prot = PROT_READ | PROT_WRITE 
 		mov r10, 34     ; flags = MAP_PRIVATE | MAP_ANONYMOUS
 		mov r8, -1      ; fd = -1
