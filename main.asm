@@ -99,13 +99,13 @@ _start:
 	;printing file size
 	mov rax, 1						;using sys_write
 	mov rdi, 1						;std_out file descriptor
-	mov rsi, size_string + 19		;giving size of file
+	mov rsi, size_string + 16		;giving size of file
 	mov rdx, 8					;charachters to write
 	syscall							;run interrupt
 	
-	mov rax, [size_string + 19]
-	cmp rax, 26 
-	jg space 
+	mov rax, [size_string + 19]  ;moving size string number to rax so program cat compare
+	cmp rax, 26										;comparing rax and 26 to see if program needs bigger buffer
+	jg space											;jumping to space and giving more space to info buffer there
 
 	reading:
 		;reading from file 
@@ -135,14 +135,15 @@ _start:
 	space:
 		mov rax, 9      ; sys_mmap
 		mov rdi, 0      ; addr
-		mov rsi, [size_string + 19]    ; length
+		mov rsi, [size_string + 17] ; length
 		mov rdx, 3      ; prot = PROT_READ | PROT_WRITE 
 		mov r10, 34     ; flags = MAP_PRIVATE | MAP_ANONYMOUS
 		mov r8, -1      ; fd = -1
 		mov r9, 0       ; offset
 		syscall
 
-		mov [info], rax
+		mov [info], rax			;moving rax to info (practicly info is now tottaly new biffer)
 
-		cmp rax, 0
-		jg reading
+		cmp rax, 0					;see if any errors had happen
+		jg reading					;if not then jump to reading
+		jle exit						;if yes then jump to exit
