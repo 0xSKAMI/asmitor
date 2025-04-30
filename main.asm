@@ -28,6 +28,7 @@ section .bss
 		iend
 	input resb 4096					;buffer to get user input 
 	info resb 26					;buffer to store info program reads from file
+	line_length resq 1
 	fd_out resb 1
 	fd_in  resq 1 
   
@@ -46,7 +47,7 @@ _start:
 	mov rax, 0			;system_read 
 	mov rdi, 0			;std_in 
 	mov rsi, input		;input pointer
-	mov rdx, 4096		;read 10 bytes 
+	mov rdx, 4096		;read 4096  bytes 
 	syscall			;make system call 
 
 	;jump to exit if input is empty 
@@ -89,26 +90,33 @@ _start:
 		mov rdx, [test_type_buffer + st_size]		;charachters to read
 		syscall							;run interrupt
 	 
-		;printing result 
+		;printing result
 		mov rax, 1						;using sys_write
 		mov rdi, 1						;std_out file descriptor
 		mov rsi, [info]					;info pointer
 		mov rdx, [test_type_buffer + st_size]						;charachters to write
 		syscall							;run interrupt
+	
+		;sys_lseek to move cursor 
+		mov rax, 8					;sys_lseek
+		mov rdi, [fd_in]		;file descriptor
+		mov rsi, 3					;bytes to move cursos
+		mov rdx, 0					;start from beggining
+		syscall
 
 		;reading user input 
 		mov rax, 0			;system_read 
 		mov rdi, 0			;std_in 
 		mov rsi, input		;input pointer
-		mov rdx, 4096		;read 10 bytes 
+		mov rdx, 4096		;read 4096 bytes 
 		syscall			;make system call 
 
-		mov rbx, rax	
+		mov rbx, rax	;moving number of bytes in input to rbx register
 
-		;printing introduce text  
+		;writing to file
 		mov rax, 1			;system_write  
 		mov rdi, [fd_in]			;std_out  
-		mov rsi, input 
+		mov rsi, input				;input buffer
 		mov rdx, rbx		;bytes to output
 		syscall			;make system call  
 
@@ -137,3 +145,19 @@ _start:
 		cmp rax, 0					;see if any errors had happen
 		jg reading					;if not then jump to reading
 		jle exit						;if yes then jump to exit
+
+	read_line:
+		mov rax, 8
+		mov rdi, [fd_in]
+		mov rsi, [line_length] 
+		mov rdx, 0
+		syscall
+
+		mov rax, 0
+		mov rdi, [fd_in]
+		mov rsi, input
+		mov rdx, 1
+		syscall
+
+		cmp rax, '/n'
+		je reading 
