@@ -26,7 +26,7 @@ section .bss
 	test_type_buffer:			;giving test_type memory (storage)
 		istruc test_type
 		iend
-	input resb 10					;buffer to get file name
+	input resb 4096					;buffer to get user input 
 	info resb 26					;buffer to store info program reads from file
 	fd_out resb 1
 	fd_in  resq 1 
@@ -46,7 +46,7 @@ _start:
 	mov rax, 0			;system_read 
 	mov rdi, 0			;std_in 
 	mov rsi, input		;input pointer
-	mov rdx, 10			;read 10 bytes 
+	mov rdx, 4096		;read 10 bytes 
 	syscall			;make system call 
 
 	;jump to exit if input is empty 
@@ -70,12 +70,13 @@ _start:
 	jl exit								;jump if file descriptor is negative
  
 	mov [fd_in], rax			;store the descriptor
- 
+
+	;getting file information
 	mov rax, 5															;sys_fstat
 	mov rdi, [fd_in]												;file descriptor
 	mov rsi, test_type_buffer								;giving it buffer so it can write in it
 	syscall																	;interrupt
-
+	
 	mov rax, [test_type_buffer + st_size]  ;moving size string number to rax so program cat compare
 	cmp rax, 26										;comparing rax and 26 to see if program needs bigger buffer
 	jg space											;jumping to space and giving more space to info buffer there
@@ -94,7 +95,23 @@ _start:
 		mov rsi, [info]					;info pointer
 		mov rdx, [test_type_buffer + st_size]						;charachters to write
 		syscall							;run interrupt
-			
+
+		;reading user input 
+		mov rax, 0			;system_read 
+		mov rdi, 0			;std_in 
+		mov rsi, input		;input pointer
+		mov rdx, 4096		;read 10 bytes 
+		syscall			;make system call 
+
+		mov rbx, rax	
+
+		;printing introduce text  
+		mov rax, 1			;system_write  
+		mov rdi, [fd_in]			;std_out  
+		mov rsi, input 
+		mov rdx, rbx		;bytes to output
+		syscall			;make system call  
+
 		; close the file 
 		mov rax, 3						;using sys_close
 		mov rdi, [fd_in]			;file descriptor
