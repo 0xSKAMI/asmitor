@@ -86,21 +86,21 @@ _start:
 		;reading from file 
 		mov rax, 0						;using sys_read
 		mov rdi, [fd_in]			;file descriptor
-		mov rsi, [info]					;info pointer	
+		mov rsi, [info]					;buffer where program stores info that it reads 
 		mov rdx, [test_type_buffer + st_size]		;charachters to read
 		syscall							;run interrupt
-	 
+
 		;printing result
 		mov rax, 1						;using sys_write
 		mov rdi, 1						;std_out file descriptor
-		mov rsi, [info]					;info pointer
+		mov rsi, [info]				;buffer where we read from
 		mov rdx, [test_type_buffer + st_size]						;charachters to write
 		syscall							;run interrupt
 	
 		;sys_lseek to move cursor 
 		mov rax, 8					;sys_lseek
 		mov rdi, [fd_in]		;file descriptor
-		mov rsi, 3					;bytes to move cursos
+		mov rsi, 0					;bytes to move cursos
 		mov rdx, 0					;start from beggining
 		syscall
 
@@ -113,6 +113,10 @@ _start:
 
 		mov rbx, rax	;moving number of bytes in input to rbx register
 
+		mov byte [input + rax - 1], 0 
+	
+		dec rbx 
+	
 		;writing to file
 		mov rax, 1			;system_write  
 		mov rdi, [fd_in]			;std_out  
@@ -140,7 +144,7 @@ _start:
 		mov r9, 0       ; offset
 		syscall
 
-		mov [info], rax			;moving rax to info (practicly info is now tottaly new biffer)
+		mov [info], rax			;moving rax to info (practicly info is now tottaly new buffer)
 
 		cmp rax, 0					;see if any errors had happen
 		jg reading					;if not then jump to reading
