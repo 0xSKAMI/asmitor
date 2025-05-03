@@ -27,7 +27,7 @@ section .bss
 		istruc test_type
 		iend
 	input resb 4096					;buffer to get user input 
-	info resb 26					;buffer to store info program reads from file
+	info resb 1					;buffer to store info program reads from file
 	line_length resq 1
 	fd_out resb 1
 	fd_in  resq 1 
@@ -78,8 +78,6 @@ _start:
 	mov rsi, test_type_buffer								;giving it buffer so it can write in it
 	syscall																	;interrupt
 	
-	mov rax, [test_type_buffer + st_size]  ;moving size string number to rax so program cat compare
-	cmp rax, 26										;comparing rax and 26 to see if program needs bigger buffer
 	jg space											;jumping to space and giving more space to info buffer there
 
 	reading:
@@ -113,9 +111,9 @@ _start:
 
 		mov rbx, rax	;moving number of bytes in input to rbx register
 
-		mov byte [input + rax - 1], 0 
+		mov byte [input + rax - 1], 0		;removing newline in the end of inpuT
 	
-		dec rbx 
+		dec rbx													;decreasing input length by 1 to fix it after /n is no longer there
 	
 		;writing to file
 		mov rax, 1			;system_write  
