@@ -1,6 +1,7 @@
 section .data     
 	filename db 'test.txt', 0 ;string + null terminator to mark the end
 	introduce db 'Put file name here: ', 0 ;string + null terminator to mark the end
+	clear db 27,"[H",27,"[2J" 
   
 section .bss
 	struc	test_type				;declaring test_type structure (we don't give it storage yet)
@@ -36,6 +37,13 @@ section .text
 	global _start
   
 _start:   
+	;clearing the terminal
+	mov rax, 1			;system_write  
+	mov rdi, 1			;std_out  
+	mov rsi, clear	;clear text
+	mov rdx, 16			;bytes to output
+	syscall			;make system call  
+
 	;printing introduce text  
 	mov rax, 1			;system_write  
 	mov rdi, 1			;std_out  
@@ -61,6 +69,13 @@ _start:
 	cmp rax, 1 
 	jle exit  
  
+	;printing introduce text  
+	mov rax, 1			;system_write  
+	mov rdi, 1			;std_out  
+	mov rsi, clear	;introduce text
+	mov rdx, 16			;bytes to output
+	syscall			;make system call  
+  
 	;opening file 
 	mov rax, 2						;using sys_open
 	mov rdi, input			  ;giving it filename
@@ -72,13 +87,18 @@ _start:
  
 	mov [fd_in], rax			;store the descriptor
 
-	;getting file information
-	mov rax, 5															;sys_fstat
-	mov rdi, [fd_in]												;file descriptor
-	mov rsi, test_type_buffer								;giving it buffer so it can write in it
-	syscall																	;interrupt
-	
-	jg space											;jumping to space and giving more space to info buffer there
+	get_file_info:
+		;getting file information
+		mov rax, 5															;sys_fstat
+		mov rdi, [fd_in]												;file descriptor
+		mov rsi, test_type_buffer								;giving it buffer so it can write in it
+		syscall																	;interrupt
+		
+		mov rax, [test_type_buffer + st_size]
+		dec rax
+		mov [test_type_buffer + st_size], rax
+		
+		jg space											;jumping to space and giving more space to info buffer there
 
 	reading:
 		;reading from file 
@@ -95,6 +115,8 @@ _start:
 		mov rdx, [test_type_buffer + st_size]						;charachters to write
 		syscall							;run interrupt
 	
+	input_loop:
+
 		;sys_lseek to move cursor 
 		mov rax, 8					;sys_lseek
 		mov rdi, [fd_in]		;file descriptor
@@ -109,6 +131,12 @@ _start:
 		mov rdx, 4096		;read 4096 bytes 
 		syscall			;make system call 
 
+		;clearing the terminal
+		mov rax, 1			;system_write  
+		mov rdi, 1			;std_out  
+		mov rsi, clear	;clear text
+		mov rdx, 16			;bytes to output
+		syscall			;make system call  
 		mov rbx, rax	;moving number of bytes in input to rbx register
 
 		mov byte [input + rax - 1], 0		;removing newline in the end of inpuT
@@ -121,6 +149,9 @@ _start:
 		mov rsi, input				;input buffer
 		mov rdx, rbx		;bytes to output
 		syscall			;make system call  
+
+		cmp rax, 0
+		jnl get_file_info 
 
 		; close the file 
 		mov rax, 3						;using sys_close
