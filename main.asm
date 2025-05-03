@@ -116,14 +116,13 @@ _start:
 		syscall							;run interrupt
 	
 	input_loop:
-
 		;sys_lseek to move cursor 
 		mov rax, 8					;sys_lseek
 		mov rdi, [fd_in]		;file descriptor
 		mov rsi, 0					;bytes to move cursos
 		mov rdx, 0					;start from beggining
 		syscall
-
+		
 		;reading user input 
 		mov rax, 0			;system_read 
 		mov rdi, 0			;std_in 
@@ -131,18 +130,19 @@ _start:
 		mov rdx, 4096		;read 4096 bytes 
 		syscall			;make system call 
 
-		;clearing the terminal
-		mov rax, 1			;system_write  
-		mov rdi, 1			;std_out  
-		mov rsi, clear	;clear text
-		mov rdx, 16			;bytes to output
-		syscall			;make system call  
 		mov rbx, rax	;moving number of bytes in input to rbx register
 
 		mov byte [input + rax - 1], 0		;removing newline in the end of inpuT
 	
 		dec rbx													;decreasing input length by 1 to fix it after /n is no longer there
 	
+		;clearing the terminal
+		mov rax, 1			;system_write  
+		mov rdi, 1			;std_out  
+		mov rsi, clear	;clear text
+		mov rdx, 16			;bytes to output
+		syscall			;make system call  
+
 		;writing to file
 		mov rax, 1			;system_write  
 		mov rdi, [fd_in]			;std_out  
