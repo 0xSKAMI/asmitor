@@ -94,13 +94,16 @@ _start:
 		mov rsi, test_type_buffer								;giving it buffer so it can write in it
 		syscall																	;interrupt
 		
-		mov rax, [test_type_buffer + st_size]
-		dec rax
-		mov [test_type_buffer + st_size], rax
-		
 		jg space											;jumping to space and giving more space to info buffer there
 
 	reading:
+		;sys_lseek to move cursor 
+		mov rax, 8					;sys_lseek
+		mov rdi, [fd_in]		;file descriptor
+		mov rsi, 0					;bytes to move cursos
+		mov rdx, 0					;start from beggining
+		syscall
+
 		;reading from file 
 		mov rax, 0						;using sys_read
 		mov rdi, [fd_in]			;file descriptor
