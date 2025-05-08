@@ -1,5 +1,4 @@
 section .data     
-	filename db 'test.txt', 0 ;string + null terminator to mark the end
 	introduce db 'Put file name here: ', 0 ;string + null terminator to mark the end
 	clear db 27,"[H",27,"[2J" 
   
@@ -27,16 +26,34 @@ section .bss
 	test_type_buffer:			;giving test_type memory (storage)
 		istruc test_type
 		iend
+	struc termios_type		;creating test_type struc to save termios flags
+		c_iflag:		resb 4  ;4 bits
+		c_oflag:		resb 4	;4 bits
+		c_cflag:		resb 4	;4 bits
+		c_lflag:		resb 4	;4 bits
+		c_line:			resb 1	;1 bits
+		C_cc:				resb 19	;19 bits
+	endstruc
+	termios_type_buffer:	;allocating storage for termios_type 
+		istruc termios_type
+		iend
 	input resb 4096					;buffer to get user input 
 	info resb 1					;buffer to store info program reads from file
 	line_length resq 1
 	fd_out resb 1
 	fd_in  resq 1 
+	tests resb 64
   
 section .text  
 	global _start
   
 _start:   
+	mov rax, 16										;sys_ioctl
+	mov rdi, 1										;stdout
+	mov rsi, 0x5401								;TCGETS
+	mov rdx, termios_type_buffer	;saving result in termios_type_buffer
+	syscall												;calling interrupt
+
 	;clearing the terminal
 	mov rax, 1			;system_write  
 	mov rdi, 1			;std_out  
@@ -87,10 +104,20 @@ _start:
  
 	mov [fd_in], rax			;store the descriptor
 
+	;chagiong flags (using hex)
+	mov eax, 0x8a31														;saving new flag in eax register
+	mov [termios_type_buffer + c_lflag], eax	;saving new flags in c_lflag buffer
+
+	mov rax, 16																;calling ioctl
+	mov rdi, 1																;file descriptor fd_out
+	mov rsi, 0x5402														;TCSET
+	mov rdx, termios_type_buffer							;saving from termios_type_buffer
+	syscall																		;calling interrupt
+
 	get_file_info:
 		;getting file information
 		mov rax, 5															;sys_fstat
-		mov rdi, [fd_in]												;file descriptor
+		mov rdi, [fd_in]												;stdout
 		mov rsi, test_type_buffer								;giving it buffer so it can write in it
 		syscall																	;interrupt
 		
@@ -123,7 +150,7 @@ _start:
 		mov rax, 8					;sys_lseek
 		mov rdi, [fd_in]		;file descriptor
 		mov rsi, 0					;bytes to move cursos
-		mov rdx, 0					;start from beggining
+		mov rdx, 1					;start from beggining
 		syscall
 		
 		;reading user input 
@@ -181,19 +208,3 @@ _start:
 		cmp rax, 0					;see if any errors had happen
 		jg reading					;if not then jump to reading
 		jle exit						;if yes then jump to exit
-
-	read_line:
-		mov rax, 8
-		mov rdi, [fd_in]
-		mov rsi, [line_length] 
-		mov rdx, 0
-		syscall
-
-		mov rax, 0
-		mov rdi, [fd_in]
-		mov rsi, input
-		mov rdx, 1
-		syscall
-
-		cmp rax, '/n'
-		je reading 
