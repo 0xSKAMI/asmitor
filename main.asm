@@ -1,4 +1,5 @@
 section .data     
+	filename db 'test.txt', 0 ;string + null terminator to mark the end
 	introduce db 'Put file name here: ', 0 ;string + null terminator to mark the end
 	clear db 27,"[H",27,"[2J" 
   
@@ -27,12 +28,12 @@ section .bss
 		istruc test_type
 		iend
 	struc termios_type		;creating test_type struc to save termios flags
-		c_iflag:		resb 4  ;4 bits
-		c_oflag:		resb 4	;4 bits
-		c_cflag:		resb 4	;4 bits
-		c_lflag:		resb 4	;4 bits
-		c_line:			resb 1	;1 bits
-		C_cc:				resb 19	;19 bits
+		c_iflag:		resb 4  ;4 bytes 
+		c_oflag:		resb 4	;4 bytes
+		c_cflag:		resb 4	;4 bytes
+		c_lflag:		resb 4	;4 bytes
+		c_line:			resb 1	;1 bytes
+		C_cc:				resb 19	;19 bytes
 	endstruc
 	termios_type_buffer:	;allocating storage for termios_type 
 		istruc termios_type
@@ -104,7 +105,7 @@ _start:
  
 	mov [fd_in], rax			;store the descriptor
 
-	;chagiong flags (using hex)
+	;changing flags (using hex)
 	mov eax, 0x8a31														;saving new flag in eax register
 	mov [termios_type_buffer + c_lflag], eax	;saving new flags in c_lflag buffer
 
@@ -120,7 +121,9 @@ _start:
 		mov rdi, [fd_in]												;stdout
 		mov rsi, test_type_buffer								;giving it buffer so it can write in it
 		syscall																	;interrupt
-		
+	
+		mov rax, [test_type_buffer + st_size]
+		cmp rax, 0
 		jg space											;jumping to space and giving more space to info buffer there
 
 	reading:
@@ -144,7 +147,7 @@ _start:
 		mov rsi, [info]				;buffer where we read from
 		mov rdx, [test_type_buffer + st_size]						;charachters to write
 		syscall							;run interrupt
-	
+
 	input_loop:
 		;sys_lseek to move cursor 
 		mov rax, 8					;sys_lseek
@@ -166,6 +169,10 @@ _start:
 	
 		dec rbx													;decreasing input length by 1 to fix it after /n is no longer there
 	
+		mov ah, [input]
+		cmp ah, 0x1b 
+		je check_cursor_1 
+
 		;clearing the terminal
 		mov rax, 1			;system_write  
 		mov rdi, 1			;std_out  
@@ -208,3 +215,37 @@ _start:
 		cmp rax, 0					;see if any errors had happen
 		jg reading					;if not then jump to reading
 		jle exit						;if yes then jump to exit
+
+	check_cursor_1:
+		mov ah, [input + 1]
+		cmp ah, 0x5b
+		je check_cursor_2 
+
+	check_cursor_2:
+		mov ah, [input + 2]
+		cmp ah, 0x43
+		je right_cursor 
+
+		mov ah, [input + 2]
+		cmp ah, 0x44
+		je left_cursor 
+
+		mov ah, [input + 2]
+		cmp ah, 0x42
+		je down_cursor
+
+		mov ah, [input + 2]
+		cmp ah, 0x41
+		je up_cursor
+	
+	right_cursor:
+		jmp exit
+	
+	left_cursor:
+		jmp exit
+
+	up_cursor:
+		jmp exit
+	
+	down_cursor:
+		jmp exit
