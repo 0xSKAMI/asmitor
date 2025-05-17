@@ -2,6 +2,10 @@ section .data
 	filename db 'test.txt', 0 ;string + null terminator to mark the end
 	introduce db 'Put file name here: ', 0 ;string + null terminator to mark the end
 	clear db 27,"[H",27,"[2J" 
+	backward db 27,"[D", 0
+	forward db 27,"[C", 0
+	up db 27,"[A", 0
+	down db 27,"[B", 0
   
 section .bss
 	struc	test_type				;declaring test_type structure (we don't give it storage yet)
@@ -50,7 +54,7 @@ section .text
   
 _start:   
 	mov rax, 16										;sys_ioctl
-	mov rdi, 1										;stdout
+	mov rdi, 2										;stdout
 	mov rsi, 0x5401								;TCGETS
 	mov rdx, termios_type_buffer	;saving result in termios_type_buffer
 	syscall												;calling interrupt
@@ -59,7 +63,7 @@ _start:
 	mov rax, 1			;system_write  
 	mov rdi, 1			;std_out  
 	mov rsi, clear	;clear text
-	mov rdx, 16			;bytes to output
+	mov rdx, 10			;bytes to output
 	syscall			;make system call  
 
 	;printing introduce text  
@@ -163,12 +167,6 @@ _start:
 		mov rdx, 4096		;read 4096 bytes 
 		syscall			;make system call 
 
-		mov rbx, rax	;moving number of bytes in input to rbx register
-
-		mov byte [input + rax - 1], 0		;removing newline in the end of inpuT
-	
-		dec rbx													;decreasing input length by 1 to fix it after /n is no longer there
-	
 		mov ah, [input]
 		cmp ah, 0x1b 
 		je check_cursor_1 
@@ -239,13 +237,41 @@ _start:
 		je up_cursor
 	
 	right_cursor:
-		jmp exit
+		;moving cursor backward
+		mov rax, 1			;system_write  
+		mov rdi, 1			;std_out  
+		mov rsi, forward	;clear text
+		mov rdx, 3			;bytes to output
+		syscall			;make system call  
+
+		jmp input_loop 
 	
 	left_cursor:
-		jmp exit
+		;moving cursor backward
+		mov rax, 1			;system_write  
+		mov rdi, 1			;std_out  
+		mov rsi, backward	;clear text
+		mov rdx, 3			;bytes to output
+		syscall			;make system call  
+
+		jmp input_loop 
 
 	up_cursor:
-		jmp exit
+		;moving cursor backward
+		mov rax, 1			;system_write  
+		mov rdi, 1			;std_out  
+		mov rsi, up	;clear text
+		mov rdx, 3			;bytes to output
+		syscall			;make system call  
+
+		jmp input_loop 
 	
 	down_cursor:
-		jmp exit
+		;moving cursor backward
+		mov rax, 1			;system_write  
+		mov rdi, 1			;std_out  
+		mov rsi, down	;clear text
+		mov rdx, 3			;bytes to output
+		syscall			;make system call  
+
+		jmp input_loop 
