@@ -3,9 +3,10 @@ section .data
 	introduce db 'Put file name here: ', 0 ;string + null terminator to mark the end
 	clear db 27,"[H",27,"[2J" 
 	backward db 27,"[D", 0
-	forward db 27,"[C", 0
+	forward db 27,"[C",13, 0
 	up db 27,"[A", 0
 	down db 27,"[B", 0
+	cursor_home db 27, "[H", 0
   
 section .bss
 	struc	test_type				;declaring test_type structure (we don't give it storage yet)
@@ -151,6 +152,13 @@ _start:
 		mov rsi, [info]				;buffer where we read from
 		mov rdx, [test_type_buffer + st_size]						;charachters to write
 		syscall							;run interrupt
+
+		;moving cursor to home (start of buffer)
+		mov rax, 1			;system_write  
+		mov rdi, 1			;std_out  
+		mov rsi, cursor_home	;ANSI code
+		mov rdx, 3			;bytes to output
+		syscall			;make system call  
 
 	input_loop:
 		;sys_lseek to move cursor 
