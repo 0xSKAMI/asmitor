@@ -7,6 +7,8 @@ section .data
 	up db 27,"[A", 0
 	down db 27,"[B", 0
 	cursor_home db 27, "[H", 0
+	cursor_save db 27, "[s", 0
+	cursor_paste db 27, "[u", 0
   
 section .bss
 	struc	test_type				;declaring test_type structure (we don't give it storage yet)
@@ -65,6 +67,13 @@ _start:
 	mov rdi, 1			;std_out  
 	mov rsi, clear	;clear text
 	mov rdx, 10			;bytes to output
+	syscall			;make system call  
+
+	;moving cursor to home (start of buffer)
+	mov rax, 1			;system_write  
+	mov rdi, 1			;std_out  
+	mov rsi, cursor_save	;ANSI code
+	mov rdx, 3			;bytes to output
 	syscall			;make system call  
 
 	;printing introduce text  
@@ -146,6 +155,13 @@ _start:
 		mov rdx, [test_type_buffer + st_size]		;charachters to read
 		syscall							;run interrupt
 
+		;moving cursor to home (start of buffer)
+		mov rax, 1			;system_write  
+		mov rdi, 1			;std_out  
+		mov rsi, cursor_home	;ANSI code
+		mov rdx, 3			;bytes to output
+		syscall			;make system call  
+
 		;printing result
 		mov rax, 1						;using sys_write
 		mov rdi, 1						;std_out file descriptor
@@ -156,7 +172,7 @@ _start:
 		;moving cursor to home (start of buffer)
 		mov rax, 1			;system_write  
 		mov rdi, 1			;std_out  
-		mov rsi, cursor_home	;ANSI code
+		mov rsi, cursor_paste	;ANSI code
 		mov rdx, 3			;bytes to output
 		syscall			;make system call  
 
@@ -252,13 +268,27 @@ _start:
 		mov rdx, 3			;bytes to output
 		syscall			;make system call  
 
-		jmp input_loop 
+		;saving cursor position
+		mov rax, 1			;system_write  
+		mov rdi, 1			;std_out  
+		mov rsi, cursor_save	;ANSI code
+		mov rdx, 3			;bytes to output
+		syscall			;make system call  
+		
+		jmp reading 
 	
 	left_cursor:
 		;moving cursor backward
 		mov rax, 1			;system_write  
 		mov rdi, 1			;std_out  
 		mov rsi, backward	;clear text
+		mov rdx, 3			;bytes to output
+		syscall			;make system call  
+
+		;saving cursor position
+		mov rax, 1			;system_write  
+		mov rdi, 1			;std_out  
+		mov rsi, cursor_save	;ANSI code
 		mov rdx, 3			;bytes to output
 		syscall			;make system call  
 
@@ -272,6 +302,13 @@ _start:
 		mov rdx, 3			;bytes to output
 		syscall			;make system call  
 
+		;saving cursor position
+		mov rax, 1			;system_write  
+		mov rdi, 1			;std_out  
+		mov rsi, cursor_save	;ANSI code
+		mov rdx, 3			;bytes to output
+		syscall			;make system call  
+
 		jmp input_loop 
 	
 	down_cursor:
@@ -279,6 +316,13 @@ _start:
 		mov rax, 1			;system_write  
 		mov rdi, 1			;std_out  
 		mov rsi, down	;clear text
+		mov rdx, 3			;bytes to output
+		syscall			;make system call  
+
+		;saving cursor position
+		mov rax, 1			;system_write  
+		mov rdi, 1			;std_out  
+		mov rsi, cursor_save	;ANSI code
 		mov rdx, 3			;bytes to output
 		syscall			;make system call  
 
