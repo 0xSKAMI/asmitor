@@ -50,7 +50,8 @@ section .bss
 	line_length resq 1
 	fd_out resb 1
 	fd_in  resq 1 
-	tests resb 64
+	line_count resb 1
+	length_count resb 1
   
 section .text  
 	global _start
@@ -68,20 +69,22 @@ _start:
 	mov rsi, clear	;clear text
 	mov rdx, 10			;bytes to output
 	syscall			;make system call  
-
+	
 	;moving cursor to home (start of buffer)
 	mov rax, 1			;system_write  
 	mov rdi, 1			;std_out  
 	mov rsi, cursor_save	;ANSI code
 	mov rdx, 3			;bytes to output
 	syscall			;make system call  
-
+	
 	;printing introduce text  
 	mov rax, 1			;system_write  
 	mov rdi, 1			;std_out  
 	mov rsi, introduce	;introduce text
 	mov rdx, 21			;bytes to output
 	syscall			;make system call  
+
+	mov rbx, rax
 
 	;reading user input 
 	mov rax, 0			;system_read 
@@ -140,7 +143,7 @@ _start:
 		cmp rax, 0
 		jg space											;jumping to space and giving more space to info buffer there
 
-	reading:
+	reading_file:
 		;sys_lseek to move cursor 
 		mov rax, 8					;sys_lseek
 		mov rdi, [fd_in]		;file descriptor
@@ -161,7 +164,7 @@ _start:
 		mov rsi, cursor_home	;ANSI code
 		mov rdx, 3			;bytes to output
 		syscall			;make system call  
-
+	reading_buffer:
 		;printing result
 		mov rax, 1						;using sys_write
 		mov rdi, 1						;std_out file descriptor
@@ -169,7 +172,7 @@ _start:
 		mov rdx, [test_type_buffer + st_size]						;charachters to write
 		syscall							;run interrupt
 
-		;moving cursor to home (start of buffer)
+		;moving cursor to where it was
 		mov rax, 1			;system_write  
 		mov rdi, 1			;std_out  
 		mov rsi, cursor_paste	;ANSI code
@@ -181,7 +184,7 @@ _start:
 		mov rax, 8					;sys_lseek
 		mov rdi, [fd_in]		;file descriptor
 		mov rsi, 0					;bytes to move cursos
-		mov rdx, 1					;start from beggining
+		mov rdx, 1					;go to the end of file 
 		syscall
 		
 		;reading user input 
@@ -191,9 +194,13 @@ _start:
 		mov rdx, 4096		;read 4096 bytes 
 		syscall			;make system call 
 
-		mov ah, [input]
-		cmp ah, 0x1b 
+		mov al, [input]
+		cmp al, 0x1b 
 		je check_cursor_1 
+
+		mov rbx, rax	;moving number of bytes in input to rbx register
+		mov byte [input + rbx - 1], 0		;removing newline in the end of inpuT
+		dec rbx
 
 		;clearing the terminal
 		mov rax, 1			;system_write  
@@ -201,16 +208,12 @@ _start:
 		mov rsi, clear	;clear text
 		mov rdx, 16			;bytes to output
 		syscall			;make system call  
-
-		;writing to file
-		mov rax, 1			;system_write  
-		mov rdi, [fd_in]			;std_out  
-		mov rsi, input				;input buffer
-		mov rdx, rbx		;bytes to output
-		syscall			;make system call  
-
-		cmp rax, 0
-		jnl get_file_info 
+	
+		mov al, [input]
+		mov rbx, [info]		
+		mov byte [rbx + 2], al
+	
+		jmp reading_buffer 
 
 		; close the file 
 		mov rax, 3						;using sys_close
@@ -235,7 +238,7 @@ _start:
 		mov [info], rax			;moving rax to info (practicly info is now tottaly new buffer)
 
 		cmp rax, 0					;see if any errors had happen
-		jg reading					;if not then jump to reading
+		jg reading_file					;if not then jump to reading
 		jle exit						;if yes then jump to exit
 
 	check_cursor_1:
@@ -274,8 +277,10 @@ _start:
 		mov rsi, cursor_save	;ANSI code
 		mov rdx, 3			;bytes to output
 		syscall			;make system call  
+
+		inc byte [length_count]
 		
-		jmp reading 
+		jmp reading_buffer
 	
 	left_cursor:
 		;moving cursor backward
@@ -292,7 +297,9 @@ _start:
 		mov rdx, 3			;bytes to output
 		syscall			;make system call  
 
-		jmp input_loop 
+		dec byte [length_count] 
+		
+		jmp reading_buffer
 
 	up_cursor:
 		;moving cursor backward
@@ -309,7 +316,7 @@ _start:
 		mov rdx, 3			;bytes to output
 		syscall			;make system call  
 
-		jmp input_loop 
+		jmp reading_buffer
 	
 	down_cursor:
 		;moving cursor backward
@@ -326,4 +333,17 @@ _start:
 		mov rdx, 3			;bytes to output
 		syscall			;make system call  
 
-		jmp input_loop 
+		jmp reading_buffer 
+
+	line_read:
+		mov rbx, [info]
+		mov rax, [line_count]
+		xor rsi, rsi
+
+		cmp byte [rbx + rax], 0x0A 
+		jne line_read
+		cmp [line_count], rax
+		jne line_read
+
+		add rax, [length_count]
+		cmp byte [rbx + rax], 0x0A 
