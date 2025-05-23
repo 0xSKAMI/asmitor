@@ -158,13 +158,14 @@ _start:
 		mov rdx, [test_type_buffer + st_size]		;charachters to read
 		syscall							;run interrupt
 
+	reading_buffer:
 		;moving cursor to home (start of buffer)
 		mov rax, 1			;system_write  
 		mov rdi, 1			;std_out  
 		mov rsi, cursor_home	;ANSI code
 		mov rdx, 3			;bytes to output
 		syscall			;make system call  
-	reading_buffer:
+
 		;printing result
 		mov rax, 1						;using sys_write
 		mov rdi, 1						;std_out file descriptor
