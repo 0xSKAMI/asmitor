@@ -50,8 +50,7 @@ section .bss
 	line_length resq 1
 	fd_out resb 1
 	fd_in  resq 1 
-	line_count resb 1
-	length_count resb 1
+	f_count resb 1
   
 section .text  
 	global _start
@@ -265,6 +264,17 @@ _start:
 		je up_cursor
 	
 	right_cursor:
+		mov rbx, [info]
+		mov rax, [f_count]
+		mov byte al, [rbx + rax + 1],
+		cmp al, 0x00
+
+		je reading_buffer
+
+		cmp al, 0x0a
+
+		je reading_buffer
+
 		;moving cursor backward
 		mov rax, 1			;system_write  
 		mov rdi, 1			;std_out  
@@ -278,13 +288,17 @@ _start:
 		mov rsi, cursor_save	;ANSI code
 		mov rdx, 3			;bytes to output
 		syscall			;make system call  
+	
+		inc byte [f_count]
 
-		inc byte [length_count]
-		
 		jmp reading_buffer
 	
 	left_cursor:
-		;moving cursor backward
+		mov rax, [f_count]
+		cmp rax, 0
+		je reading_buffer
+
+		;moving cursor forward 
 		mov rax, 1			;system_write  
 		mov rdi, 1			;std_out  
 		mov rsi, backward	;clear text
@@ -298,12 +312,12 @@ _start:
 		mov rdx, 3			;bytes to output
 		syscall			;make system call  
 
-		dec byte [length_count] 
-		
+		dec byte [f_count]
+
 		jmp reading_buffer
 
 	up_cursor:
-		;moving cursor backward
+		;moving cursor up 
 		mov rax, 1			;system_write  
 		mov rdi, 1			;std_out  
 		mov rsi, up	;clear text
@@ -320,7 +334,29 @@ _start:
 		jmp reading_buffer
 	
 	down_cursor:
-		;moving cursor backward
+		mov rax, [f_count]
+		cmp rax, [test_type_buffer + st_size]
+		jge reading_buffer
+		
+		mov rbx, [info]
+		mov rdx, [f_count]
+	down_loop:
+		inc rax 
+
+		cmp rax, [test_type_buffer + st_size]
+		jge reading_buffer 
+
+		mov byte sil, [rbx + rax],
+		cmp sil, 0x0a 
+		
+		jne down_loop	
+		mov [f_count], rax
+	
+		mov rax, [f_count]
+		mov byte sil, [rbx + rax + rdx]
+
+	loop_end:
+		;moving cursor down 
 		mov rax, 1			;system_write  
 		mov rdi, 1			;std_out  
 		mov rsi, down	;clear text
@@ -335,16 +371,3 @@ _start:
 		syscall			;make system call  
 
 		jmp reading_buffer 
-
-	line_read:
-		mov rbx, [info]
-		mov rax, [line_count]
-		xor rsi, rsi
-
-		cmp byte [rbx + rax], 0x0A 
-		jne line_read
-		cmp [line_count], rax
-		jne line_read
-
-		add rax, [length_count]
-		cmp byte [rbx + rax], 0x0A 
