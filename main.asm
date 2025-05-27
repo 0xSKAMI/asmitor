@@ -294,9 +294,15 @@ _start:
 		jmp reading_buffer
 	
 	left_cursor:
-		mov rax, [f_count]
-		cmp rax, 0
-		je reading_buffer
+		;check if we are at the start of buffer
+		mov rax, [f_count]							;length number where we are
+		cmp rax, 0											;comparing it to 0 (start address)
+		je reading_buffer								;jumping to reading_buffer
+
+		mov rbx, [info]									;saving info buffer in rbx register
+		mov byte al, [rbx + rax - 1]		;moving previous byte to al register
+		cmp al, 0x00										;cehcking if it is \n 
+		je reading_buffer								;if yes jump to reding_buffer
 
 		;moving cursor forward 
 		mov rax, 1			;system_write  
@@ -351,11 +357,39 @@ _start:
 		
 		jne down_loop	
 		mov [f_count], rax
-	
-		mov rax, [f_count]
-		mov byte sil, [rbx + rax + rdx]
 
 	loop_end:
+		xor cl, cl
+		cmp rdx, 0
+		je end_test
+
+	testing:
+		mov byte sil, [rbx + rdx]
+		cmp sil, 0
+		je end_test
+		cmp sil, 0xa
+		je end_test
+		dec rdx
+		inc cl	
+		jmp testing
+
+	end_test:
+		
+	testing_2:
+		mov bl, cl
+		
+		;moving cursor backward
+		mov rax, 1			;system_write  
+		mov rdi, 1			;std_out  
+		mov rsi, forward	;clear text
+		mov rdx, 3			;bytes to output
+		syscall			;make system call  
+
+		cmp bl, 0
+		dec bl
+		jnle testing_2
+	end_test_2:
+
 		;moving cursor down 
 		mov rax, 1			;system_write  
 		mov rdi, 1			;std_out  
