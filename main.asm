@@ -265,18 +265,19 @@ _start:
 		je up_cursor
 	
 	right_cursor:
-		mov rbx, [info]
-		mov rax, [f_count]
-		mov byte al, [rbx + rax + 1],
-		cmp al, 0x00
+		;see if byte in front of cursor exist (is not 0) or is \n (newline)
+		mov rbx, [info]										;moving info buffer to rbx
+		mov rax, [f_count]								;moving f_count value to rax
+		mov byte al, [rbx + rax + 1]			;moving byte in front of cursor to al
+		cmp al, 0x00											;compare it to 0
 
-		je reading_buffer
+		je reading_buffer									;if it equals 0 then jump to reading_buffer
 
-		cmp al, 0x0a
+		cmp al, 0x0a											;compare it to \n
 
-		je reading_buffer
+		je reading_buffer									;if it equals then jump to reading_buffer
 
-		;moving cursor backward
+		;moving cursor forward 
 		mov rax, 1			;system_write  
 		mov rdi, 1			;std_out  
 		mov rsi, forward	;clear text
@@ -341,54 +342,67 @@ _start:
 		jmp reading_buffer
 	
 	down_cursor:
-		mov rax, [f_count]
-		cmp rax, [test_type_buffer + st_size]
-		jge reading_buffer
+		;see if we are at the end of file
+		mov rax, [f_count]											;moving f_count to rax
+		cmp rax, [test_type_buffer + st_size]		;comparing f_count to file length
+		jge reading_buffer											;if they match jump to reading_buffer
 		
-		mov rbx, [info]
-		mov rdx, [f_count]
+		mov rbx, [info]													;moving info buffer to rbx	
+		mov rdx, [f_count]											;moving f_count to rdx
+
+	;loop to see if in file contains \n and making f_count same number that this \n is in buffer (number) or if it does not then don't move cursor
 	down_loop:
-		inc rax 
+		inc rax																			;increase rax by 1 
 
-		cmp rax, [test_type_buffer + st_size]
-		jge reading_buffer 
+		cmp rax, [test_type_buffer + st_size]				;see if we are at the end of file
+		jge reading_buffer													;jump to reading buffer it we are at the end or after end in buffer 
 
-		mov byte sil, [rbx + rax - 1],
-		cmp sil, 0x0a 
+		mov byte sil, [rbx + rax - 1]								;see if we passed \n by one
+		cmp sil, 0x0a																;comparing it
 		
-		jne down_loop	
+		jne down_loop																;if we did end loop	
 		mov [f_count], rax
 
 	loop_end:
-		xor dil, dil 
-		cmp rdx, 0
-		je end_test
+		xor spl, spl																;make spl 0
+		cmp rdx, 0																	;see if f_count is 0
+		je end_test																	;if it is jump to end of loop
 
+	;this loop is to get where cursor was before pressing down arrow from newline or start of buffer
 	testing:
-		mov byte sil, [rbx + rdx]
-		cmp sil, 0
-		je end_test
-		cmp sil, 0xa
-		je end_test
-		dec rdx
-		inc cl	
-		jmp testing
-
+		mov byte sil, [rbx + rdx]				;store byte to sil
+		cmp rdx, 0											;see if we are at the beggining of buffer
+		je end_test											;if we are end loop
+		cmp sil, 0x0a										;see if we are at the \n
+		je end_test											;if yes end the loop
+		dec rdx													;decrease rdx (virtual f_count) by 1
+		inc spl													;increase spl (will be used to increase f_count)
+		jmp testing											;start loop again
 	end_test:
-		
+
+	;this loop manages that when we go to newpage we have proper f_count and cursor will not be on empty area
 	testing_2:
-		cmp dil, 0
-		dec dil 
-		jle end_test_2 
+		cmp spl, 0												;compare sil to 0
+		jle end_test_2										;if it is less or equal end loop 
+		dec spl														;decrease spl by 1 
 
-		;moving cursor backward
-		mov rax, 1			;system_write  
-		mov rdi, 1			;std_out  
-		mov rsi, forward	;clear text
-		mov rdx, 3			;bytes to output
-		syscall			;make system call  
+		inc byte [f_count]								;increase f_count by 1
+		
+		mov rdx, [f_count]								;store f_count in rdx register
 
-		jmp testing_2
+		mov byte sil, [rbx + rdx + 1]			;move byte in front of f_count to sil
+		cmp sil, 0												;see if it is 0 (does not exist)
+		jne testing_2											;if it does exist start loop again
+
+		dec byte [f_count]								;if it does not exist increase f_count by 1
+
+		mov rax, 1												;system_write  
+		mov rdi, 1												;std_out  
+		mov rsi, backward									;clear text
+		mov rdx, 3												;bytes to output
+		syscall														;make system call  
+
+		jmp testing_2											;start loop again
 	end_test_2:
 		;moving cursor down 
 		mov rax, 1			;system_write  
