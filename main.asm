@@ -61,7 +61,7 @@ _start:
 	mov rsi, 0x5401								;TCGETS
 	mov rdx, termios_type_buffer	;saving result in termios_type_buffer
 	syscall												;calling interrupt
-
+		
 	;clearing the terminal
 	mov rax, 1			;system_write  
 	mov rdi, 1			;std_out  
@@ -208,10 +208,11 @@ _start:
 		mov rsi, clear	;clear text
 		mov rdx, 16			;bytes to output
 		syscall			;make system call  
-	
+		
+		mov rdx, [f_count]
 		mov al, [input]
 		mov rbx, [info]		
-		mov byte [rbx + 2], al
+		mov byte [rbx + rdx], al
 	
 		jmp reading_buffer 
 
@@ -301,7 +302,7 @@ _start:
 
 		mov rbx, [info]									;saving info buffer in rbx register
 		mov byte al, [rbx + rax - 1]		;moving previous byte to al register
-		cmp al, 0x00										;cehcking if it is \n 
+		cmp al, 0x0a										;cehcking if it is \n 
 		je reading_buffer								;if yes jump to reding_buffer
 
 		;moving cursor forward 
@@ -352,14 +353,14 @@ _start:
 		cmp rax, [test_type_buffer + st_size]
 		jge reading_buffer 
 
-		mov byte sil, [rbx + rax],
+		mov byte sil, [rbx + rax - 1],
 		cmp sil, 0x0a 
 		
 		jne down_loop	
 		mov [f_count], rax
 
 	loop_end:
-		xor cl, cl
+		xor dil, dil 
 		cmp rdx, 0
 		je end_test
 
@@ -376,8 +377,10 @@ _start:
 	end_test:
 		
 	testing_2:
-		mov bl, cl
-		
+		cmp dil, 0
+		dec dil 
+		jle end_test_2 
+
 		;moving cursor backward
 		mov rax, 1			;system_write  
 		mov rdi, 1			;std_out  
@@ -385,11 +388,8 @@ _start:
 		mov rdx, 3			;bytes to output
 		syscall			;make system call  
 
-		cmp bl, 0
-		dec bl
-		jnle testing_2
+		jmp testing_2
 	end_test_2:
-
 		;moving cursor down 
 		mov rax, 1			;system_write  
 		mov rdi, 1			;std_out  
