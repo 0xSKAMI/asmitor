@@ -50,7 +50,9 @@ section .bss
 	line_length resq 1
 	fd_out resb 1
 	fd_in  resq 1 
-	f_count resb 1
+	l_diff resb 8
+	f_count resb 8
+	up_diff resb 4
   
 section .text  
 	global _start
@@ -325,6 +327,43 @@ _start:
 		jmp reading_buffer
 
 	up_cursor:
+		mov rax, 0 
+		mov [up_diff], rax
+
+		mov al, [l_diff]
+		cmp al, 0
+		jng reading_buffer
+
+		mov rbx, [f_count]
+		mov rdx, [info]
+
+	up_loop:
+		dec rbx
+		inc byte [up_diff]
+		mov rcx, up_diff
+
+		mov al, [rdx + rbx + 1]
+		cmp al, 0x0a
+		jne up_loop
+		dec byte [up_diff]
+		dec byte [up_diff]
+		mov [f_count], rbx
+		xor rdi, rdi
+
+	up_loop_2:
+		dec rbx
+		inc rdi
+
+		cmp rbx, 0  
+		jle up_loop_3
+		mov al, [rdx + rbx + 1]
+		cmp al, 0x0a
+		jne up_loop_2
+
+	up_loop_3:
+		sub rdi, [up_diff]	
+		sub [f_count], rdi
+
 		;moving cursor up 
 		mov rax, 1			;system_write  
 		mov rdi, 1			;std_out  
@@ -404,6 +443,8 @@ _start:
 
 		jmp testing_2											;start loop again
 	end_test_2:
+		inc byte [l_diff]
+
 		;moving cursor down 
 		mov rax, 1			;system_write  
 		mov rdi, 1			;std_out  
