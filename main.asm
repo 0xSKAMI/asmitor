@@ -336,7 +336,8 @@ _start:
 
 		mov rbx, [f_count]
 		mov rdx, [info]
-
+	
+	;this loop goes to previous line before ending (\n)
 	up_loop:
 		dec rbx
 		inc byte [up_diff]
@@ -350,19 +351,42 @@ _start:
 		mov [f_count], rbx
 		xor rdi, rdi
 
+	;this loop gets length of line user wants to go
 	up_loop_2:
 		dec rbx
 		inc rdi
 
 		cmp rbx, 0  
 		jle up_loop_3
-		mov al, [rdx + rbx + 1]
+		mov al, [rdx + rbx - 1]
 		cmp al, 0x0a
 		jne up_loop_2
 
+	;move f_count and if neccecery cursor too
 	up_loop_3:
+		cmp rdi, [up_diff]
+		jl up_loop_3_2
+		
 		sub rdi, [up_diff]	
 		sub [f_count], rdi
+		jmp up_loop_3_end
+	
+	;move cursor
+	up_loop_3_2:
+		sub [up_diff], rdi
+
+		;moving cursor backward 
+		mov rax, 1			;system_write  
+		mov rdi, 1			;std_out  
+		mov rsi, backward	;clear text
+		mov rdx, 3			;bytes to output
+		syscall			;make system call  
+
+		mov rbx, [up_diff] 
+		cmp rbx, 1
+		jg up_loop_3_2
+
+	up_loop_3_end:
 
 		;moving cursor up 
 		mov rax, 1			;system_write  
