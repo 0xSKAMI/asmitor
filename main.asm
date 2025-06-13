@@ -412,6 +412,7 @@ _start:
 		mov byte sil, [rbx + rdx]				;store byte to sil
 		cmp rdx, 0											;see if we are at the beggining of buffer
 		je end_test											;if we are end loop
+		mov byte sil, [rbx + rdx - 1]		;store byte to sil
 		cmp sil, 0x0a										;see if we are at the \n
 		je end_test											;if yes end the loop
 		dec rdx													;decrease rdx (virtual f_count) by 1
@@ -421,16 +422,15 @@ _start:
 
 	;this loop manages that when we go to newpage we have proper f_count and cursor will not be on empty area
 	testing_2:
-		cmp spl, 0												;compare sil to 0
+		cmp spl, 0												;compare spl to 0
 		jle end_test_2										;if it is less or equal end loop 
 		dec spl														;decrease spl by 1 
 
 		inc byte [f_count]								;increase f_count by 1
 		
 		mov rdx, [f_count]								;store f_count in rdx register
-
-		mov byte sil, [rbx + rdx + 1]			;move byte in front of f_count to sil
-		cmp sil, 0												;see if it is 0 (does not exist)
+		mov byte sil, [rbx + rdx]					;move byte in front of f_count to sil
+		cmp sil, 0x0a											;see if it is 0 (does not exist)
 		jne testing_2											;if it does exist start loop again
 
 		dec byte [f_count]								;if it does not exist increase f_count by 1
