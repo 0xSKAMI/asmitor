@@ -1,5 +1,5 @@
 section .data     
-	filename db 'test.txt', 0 ;string + null terminator to mark the end
+	zero db 0
 	introduce db 'Put file name here: ', 0 ;string + null terminator to mark the end
 	clear db 27,"[H",27,"[2J" 
 	backward db 27,"[D", 0
@@ -35,7 +35,7 @@ section .bss
 		istruc test_type
 		iend
 	struc termios_type		;creating test_type struc to save termios flags
-		c_iflag:		resb 4  ;4 bytes 
+		c_iflag:		resb 4 ;4 bytes 
 		c_oflag:		resb 4	;4 bytes
 		c_cflag:		resb 4	;4 bytes
 		c_lflag:		resb 4	;4 bytes
@@ -95,17 +95,13 @@ _start:
 	syscall			;make system call 
 
 	;jump to exit if input is empty 
-	cmp rax, 10 
-	jge exit  
+	cmp rax, 1 
+	jle exit  
 
 	;adding null terminator in the end of file
 	mov byte [input + rax - 1], 0 
  
-	;jump to exit if input is empty 
-	cmp rax, 1 
-	jle exit  
- 
-	;printing introduce text  
+	;clearing terminal screen
 	mov rax, 1			;system_write  
 	mov rdi, 1			;std_out  
 	mov rsi, clear	;introduce text
@@ -214,6 +210,7 @@ _start:
 		mov rdx, [f_count]
 		mov al, [input]
 		mov rbx, [info]		
+		
 		mov byte [rbx + rdx], al
 	
 		jmp reading_buffer 
@@ -387,6 +384,7 @@ _start:
 		jg up_loop_3_2
 
 	up_loop_3_end:
+		dec byte [l_diff]
 
 		;moving cursor up 
 		mov rax, 1			;system_write  
