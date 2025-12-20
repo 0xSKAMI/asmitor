@@ -64,6 +64,10 @@ _start:
 	mov rdx, termios_type_buffer	;saving result in termios_type_buffer
 	syscall												;calling interrupt
 		
+	;checking if ioclt has worked
+	cmp rax, 0
+	jne exit
+
 	;clearing the terminal
 	mov rax, 1			;system_write  
 	mov rdi, 1			;std_out  
@@ -112,7 +116,7 @@ _start:
 	mov rax, 2						;using sys_open
 	mov rdi, input			  ;giving it filename
 	mov rsi, 2						;declaring mode permissions
-	syscall							;starting inteupt
+	syscall							;starting interrupt
 
 	cmp rax, 0						 
 	jl exit								;jump if file descriptor is negative
@@ -129,10 +133,14 @@ _start:
 	mov rdx, termios_type_buffer							;saving from termios_type_buffer
 	syscall																		;calling interrupt
 
+	;checking if ioclt has worked
+	cmp rax, 0
+	jne exit
+
 	get_file_info:
 		;getting file information
 		mov rax, 5															;sys_fstat
-		mov rdi, [fd_in]												;stdout
+		mov rdi, [fd_in]												;file descriptor
 		mov rsi, test_type_buffer								;giving it buffer so it can write in it
 		syscall																	;interrupt
 	
@@ -154,6 +162,10 @@ _start:
 		mov rsi, [info]					;buffer where program stores info that it reads 
 		mov rdx, [test_type_buffer + st_size]		;charachters to read
 		syscall							;run interrupt
+
+		;error checking if file was not read
+		cmp rax, -1
+		je exit
 
 	reading_buffer:
 		;moving cursor to home (start of buffer)
@@ -192,9 +204,13 @@ _start:
 		mov rdx, 4096		;read 4096 bytes 
 		syscall			;make system call 
 
+		;checking if user is pressing arrow keys
 		mov al, [input]
 		cmp al, 0x1b 
 		je check_cursor_1 
+		;checking if user is pressing newline (not implemented yet)
+		cmp al, 0x0a
+		je input_loop 
 
 		mov rbx, rax	;moving number of bytes in input to rbx register
 		mov byte [input + rbx - 1], 0		;removing newline in the end of inpuT
