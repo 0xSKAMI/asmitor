@@ -45,6 +45,7 @@ section .bss
 	termios_type_buffer:	;allocating storage for termios_type 
 		istruc termios_type
 		iend
+	filename resb 4096					;buffer to get user input 
 	input resb 4096					;buffer to get user input 
 	info resb 1					;buffer to store info program reads from file
 	line_length resq 1
@@ -94,7 +95,7 @@ _start:
 	;reading user input 
 	mov rax, 0			;system_read 
 	mov rdi, 0			;std_in 
-	mov rsi, input		;input pointer
+	mov rsi, filename		;input pointer
 	mov rdx, 4096		;read 4096  bytes 
 	syscall			;make system call 
 
@@ -103,7 +104,7 @@ _start:
 	jle exit  
 
 	;adding null terminator in the end of file
-	mov byte [input + rax - 1], 0 
+	mov byte [filename + rax - 1], 0 
  
 	;clearing terminal screen
 	mov rax, 1			;system_write  
@@ -114,7 +115,7 @@ _start:
   
 	;opening file 
 	mov rax, 2						;using sys_open
-	mov rdi, input			  ;giving it filename
+	mov rdi, filename			  ;giving it filename
 	mov rsi, 2						;declaring mode permissions
 	syscall							;starting interrupt
 
@@ -163,6 +164,11 @@ reading_file:
 	mov rdx, [test_type_buffer + st_size]		;charachters to read
 	syscall							;run interrupt
 
+	; close the file 
+	mov rax, 3						;using sys_close
+	mov rdi, [fd_in]			;file descriptor
+	syscall								;run interrupt
+
 	;error checking if file was not read
 	cmp rax, -1
 	je exit
@@ -206,9 +212,9 @@ input_loop:
 	mov al, [input]
 	cmp al, 0x1b 
 	je check_cursor_1 
-	;checking if user is pressing newline (not implemented yet)
+	;experimental code
 	cmp al, 0x0a
-	je input_loop 
+	je save 
 
 	mov rbx, rax	;moving number of bytes in input to rbx register
 	mov byte [input + rbx - 1], 0		;removing newline in the end of inpuT
@@ -229,15 +235,60 @@ input_loop:
 
 	jmp reading_buffer 
 
+;label for exit code 
+exit: 
+	;changing flags back
+	mov eax, 0x8a3b														;saving original flags in register
+	mov [termios_type_buffer + c_lflag], eax	;saving original flags in buffer
+
+	mov rax, 16																;calling ioctl
+	mov rdi, 1																;file descriptor fd_out
+	mov rsi, 0x5402														;TCSET
+	mov rdx, termios_type_buffer							;saving from termios_type_buffer
+	syscall																		;calling interrupt
+
+	mov rax, 60					;using sys_exit
+	syscall						;run interrupt
+
+save:
+	;opening file 
+	mov rax, 2						;using sys_open
+	mov rdi, filename			  ;giving it filename
+	mov rsi, 2						;declaring mode permissions
+	syscall							;starting interrupt
+
+	cmp rax, 0						 
+	jl exit								;jump if file descriptor is negative
+ 
+	mov [fd_in], rax			;store the descriptor
+
+	;sys_lseek to move cursor 
+	mov rax, 8					;sys_lseek
+	mov rdi, [fd_in]		;file descriptor
+	mov rsi, 0					;bytes to move cursos
+	mov rdx, 0					;start from beggining
+	syscall
+
+	cmp rax, 0
+	jne exit
+
+	;save file after pressing enter
+	mov rax, 1
+	mov rdi, [fd_in]
+	mov rsi, [info]
+	mov rdx, [test_type_buffer + st_size]
+	syscall
+
+	;cheking if file is saved
+	cmp rax, [test_type_buffer + st_size]
+
 	; close the file 
 	mov rax, 3						;using sys_close
 	mov rdi, [fd_in]			;file descriptor
 	syscall								;run interrupt
 
-;label for exit code 
-exit: 
-	mov rax, 60					;using sys_exit
-	syscall						;run interrupt
+	je exit
+	jne input_loop
 
 space:
 	mov rax, 9      ; sys_mmap
