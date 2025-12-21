@@ -137,364 +137,362 @@ _start:
 	cmp rax, 0
 	jne exit
 
-	get_file_info:
-		;getting file information
-		mov rax, 5															;sys_fstat
-		mov rdi, [fd_in]												;file descriptor
-		mov rsi, test_type_buffer								;giving it buffer so it can write in it
-		syscall																	;interrupt
+get_file_info:
+	;getting file information
+	mov rax, 5															;sys_fstat
+	mov rdi, [fd_in]												;file descriptor
+	mov rsi, test_type_buffer								;giving it buffer so it can write in it
+	syscall																	;interrupt
+
+	mov rax, [test_type_buffer + st_size]
+	cmp rax, 0
+	jg space											;jumping to space and giving more space to info buffer there
+
+reading_file:
+	;sys_lseek to move cursor 
+	mov rax, 8					;sys_lseek
+	mov rdi, [fd_in]		;file descriptor
+	mov rsi, 0					;bytes to move cursos
+	mov rdx, 0					;start from beggining
+	syscall
+
+	;reading from file 
+	mov rax, 0						;using sys_read
+	mov rdi, [fd_in]			;file descriptor
+	mov rsi, [info]					;buffer where program stores info that it reads 
+	mov rdx, [test_type_buffer + st_size]		;charachters to read
+	syscall							;run interrupt
+
+	;error checking if file was not read
+	cmp rax, -1
+	je exit
+
+reading_buffer:
+	;moving cursor to home (start of buffer)
+	mov rax, 1			;system_write  
+	mov rdi, 1			;std_out  
+	mov rsi, cursor_home	;ANSI code
+	mov rdx, 3			;bytes to output
+	syscall			;make system call  
+
+	;printing result
+	mov rax, 1						;using sys_write
+	mov rdi, 1						;std_out file descriptor
+	mov rsi, [info]				;buffer where we read from
+	mov rdx, [test_type_buffer + st_size]						;charachters to write
+	syscall							;run interrupt
+
+	;moving cursor to where it was
+	mov rax, 1			;system_write  
+	mov rdi, 1			;std_out  
+	mov rsi, cursor_paste	;ANSI code
+	mov rdx, 3			;bytes to output
+	syscall			;make system call  
+
+input_loop:
+	mov rdi, [fd_in]		;file descriptor
+	mov rsi, 0					;bytes to move cursos
+	mov rdx, 1					;go to the end of file 
+	syscall
 	
-		mov rax, [test_type_buffer + st_size]
-		cmp rax, 0
-		jg space											;jumping to space and giving more space to info buffer there
+	;reading user input 
+	mov rax, 0			;system_read 
+	mov rdi, 0			;std_in 
+	mov rsi, input		;input pointer
+	mov rdx, 4096		;read 4096 bytes 
+	syscall			;make system call 
 
-	reading_file:
-		;sys_lseek to move cursor 
-		mov rax, 8					;sys_lseek
-		mov rdi, [fd_in]		;file descriptor
-		mov rsi, 0					;bytes to move cursos
-		mov rdx, 0					;start from beggining
-		syscall
+	;checking if user is pressing arrow keys
+	mov al, [input]
+	cmp al, 0x1b 
+	je check_cursor_1 
+	;checking if user is pressing newline (not implemented yet)
+	cmp al, 0x0a
+	je input_loop 
 
-		;reading from file 
-		mov rax, 0						;using sys_read
-		mov rdi, [fd_in]			;file descriptor
-		mov rsi, [info]					;buffer where program stores info that it reads 
-		mov rdx, [test_type_buffer + st_size]		;charachters to read
-		syscall							;run interrupt
+	mov rbx, rax	;moving number of bytes in input to rbx register
+	mov byte [input + rbx - 1], 0		;removing newline in the end of inpuT
+	dec rbx
 
-		;error checking if file was not read
-		cmp rax, -1
-		je exit
-
-	reading_buffer:
-		;moving cursor to home (start of buffer)
-		mov rax, 1			;system_write  
-		mov rdi, 1			;std_out  
-		mov rsi, cursor_home	;ANSI code
-		mov rdx, 3			;bytes to output
-		syscall			;make system call  
-
-		;printing result
-		mov rax, 1						;using sys_write
-		mov rdi, 1						;std_out file descriptor
-		mov rsi, [info]				;buffer where we read from
-		mov rdx, [test_type_buffer + st_size]						;charachters to write
-		syscall							;run interrupt
-
-		;moving cursor to where it was
-		mov rax, 1			;system_write  
-		mov rdi, 1			;std_out  
-		mov rsi, cursor_paste	;ANSI code
-		mov rdx, 3			;bytes to output
-		syscall			;make system call  
-
-	input_loop:
-		;sys_lseek to move cursor 
-		mov rax, 8					;sys_lseek
-		mov rdi, [fd_in]		;file descriptor
-		mov rsi, 0					;bytes to move cursos
-		mov rdx, 1					;go to the end of file 
-		syscall
-		
-		;reading user input 
-		mov rax, 0			;system_read 
-		mov rdi, 0			;std_in 
-		mov rsi, input		;input pointer
-		mov rdx, 4096		;read 4096 bytes 
-		syscall			;make system call 
-
-		;checking if user is pressing arrow keys
-		mov al, [input]
-		cmp al, 0x1b 
-		je check_cursor_1 
-		;checking if user is pressing newline (not implemented yet)
-		cmp al, 0x0a
-		je input_loop 
-
-		mov rbx, rax	;moving number of bytes in input to rbx register
-		mov byte [input + rbx - 1], 0		;removing newline in the end of inpuT
-		dec rbx
-
-		;clearing the terminal
-		mov rax, 1			;system_write  
-		mov rdi, 1			;std_out  
-		mov rsi, clear	;clear text
-		mov rdx, 16			;bytes to output
-		syscall			;make system call  
-		
-		mov rdx, [f_count]
-		mov al, [input]
-		mov rbx, [info]		
-		
-		mov byte [rbx + rdx], al
+	;clearing the terminal
+	mov rax, 1			;system_write  
+	mov rdi, 1			;std_out  
+	mov rsi, clear	;clear text
+	mov rdx, 16			;bytes to output
+	syscall			;make system call  
 	
-		jmp reading_buffer 
-
-		; close the file 
-		mov rax, 3						;using sys_close
-		mov rdi, [fd_in]			;file descriptor
-		syscall								;run interrupt
- 
-	;label for exit code 
-	exit: 
-		mov rax, 60					;using sys_exit
-		syscall						;run interrupt
-
-	space:
-		mov rax, 9      ; sys_mmap
-		mov rdi, 0      ; addr
-		mov rsi, [test_type_buffer  + st_size] ; length
-		mov rdx, 3      ; prot = PROT_READ | PROT_WRITE 
-		mov r10, 34     ; flags = MAP_PRIVATE | MAP_ANONYMOUS
-		mov r8, -1      ; fd = -1
-		mov r9, 0       ; offset
-		syscall
-
-		mov [info], rax			;moving rax to info (practicly info is now tottaly new buffer)
-
-		cmp rax, 0					;see if any errors had happen
-		jg reading_file					;if not then jump to reading
-		jle exit						;if yes then jump to exit
-
-	check_cursor_1:
-		mov ah, [input + 1]
-		cmp ah, 0x5b
-		je check_cursor_2 
-
-	check_cursor_2:
-		mov ah, [input + 2]
-		cmp ah, 0x43
-		je right_cursor 
-
-		mov ah, [input + 2]
-		cmp ah, 0x44
-		je left_cursor 
-
-		mov ah, [input + 2]
-		cmp ah, 0x42
-		je down_cursor
-
-		mov ah, [input + 2]
-		cmp ah, 0x41
-		je up_cursor
+	mov rdx, [f_count]
+	mov al, [input]
+	mov rbx, [info]		
 	
-	right_cursor:
-		;see if byte in front of cursor exist (is not 0) or is \n (newline)
-		mov rbx, [info]										;moving info buffer to rbx
-		mov rax, [f_count]								;moving f_count value to rax
-		mov byte al, [rbx + rax + 1]			;moving byte in front of cursor to al
-		cmp al, 0x00											;compare it to 0
+	mov byte [rbx + rdx], al
 
-		je reading_buffer									;if it equals 0 then jump to reading_buffer
+	jmp reading_buffer 
 
-		cmp al, 0x0a											;compare it to \n
+	; close the file 
+	mov rax, 3						;using sys_close
+	mov rdi, [fd_in]			;file descriptor
+	syscall								;run interrupt
 
-		je reading_buffer									;if it equals then jump to reading_buffer
+;label for exit code 
+exit: 
+	mov rax, 60					;using sys_exit
+	syscall						;run interrupt
 
-		;moving cursor forward 
-		mov rax, 1			;system_write  
-		mov rdi, 1			;std_out  
-		mov rsi, forward	;clear text
-		mov rdx, 3			;bytes to output
-		syscall			;make system call  
+space:
+	mov rax, 9      ; sys_mmap
+	mov rdi, 0      ; addr
+	mov rsi, [test_type_buffer  + st_size] ; length
+	mov rdx, 3      ; prot = PROT_READ | PROT_WRITE 
+	mov r10, 34     ; flags = MAP_PRIVATE | MAP_ANONYMOUS
+	mov r8, -1      ; fd = -1
+	mov r9, 0       ; offset
+	syscall
 
-		;saving cursor position
-		mov rax, 1			;system_write  
-		mov rdi, 1			;std_out  
-		mov rsi, cursor_save	;ANSI code
-		mov rdx, 3			;bytes to output
-		syscall			;make system call  
+	mov [info], rax			;moving rax to info (practicly info is now tottaly new buffer)
+
+	cmp rax, 0					;see if any errors had happen
+	jg reading_file					;if not then jump to reading
+	jle exit						;if yes then jump to exit
+
+check_cursor_1:
+	mov ah, [input + 1]
+	cmp ah, 0x5b
+	je check_cursor_2 
+
+check_cursor_2:
+	mov ah, [input + 2]
+	cmp ah, 0x43
+	je right_cursor 
+
+	mov ah, [input + 2]
+	cmp ah, 0x44
+	je left_cursor 
+
+	mov ah, [input + 2]
+	cmp ah, 0x42
+	je down_cursor
+
+	mov ah, [input + 2]
+	cmp ah, 0x41
+	je up_cursor
+
+right_cursor:
+	;see if byte in front of cursor exist (is not 0) or is \n (newline)
+	mov rbx, [info]										;moving info buffer to rbx
+	mov rax, [f_count]								;moving f_count value to rax
+	mov byte al, [rbx + rax + 1]			;moving byte in front of cursor to al
+	cmp al, 0x00											;compare it to 0
+
+	je reading_buffer									;if it equals 0 then jump to reading_buffer
+
+	cmp al, 0x0a											;compare it to \n
+
+	je reading_buffer									;if it equals then jump to reading_buffer
+
+	;moving cursor forward 
+	mov rax, 1			;system_write  
+	mov rdi, 1			;std_out  
+	mov rsi, forward	;clear text
+	mov rdx, 3			;bytes to output
+	syscall			;make system call  
+
+	;saving cursor position
+	mov rax, 1			;system_write  
+	mov rdi, 1			;std_out  
+	mov rsi, cursor_save	;ANSI code
+	mov rdx, 3			;bytes to output
+	syscall			;make system call  
+
+	inc byte [f_count]
+
+	jmp reading_buffer
+
+left_cursor:
+	;check if we are at the start of buffer
+	mov rax, [f_count]							;length number where we are
+	cmp rax, 0											;comparing it to 0 (start address)
+	je reading_buffer								;jumping to reading_buffer
+
+	mov rbx, [info]									;saving info buffer in rbx register
+	mov byte al, [rbx + rax - 1]		;moving previous byte to al register
+	cmp al, 0x0a										;cehcking if it is \n 
+	je reading_buffer								;if yes jump to reding_buffer
+
+	;moving cursor forward 
+	mov rax, 1			;system_write  
+	mov rdi, 1			;std_out  
+	mov rsi, backward	;clear text
+	mov rdx, 3			;bytes to output
+	syscall			;make system call  
+
+	;saving cursor position
+	mov rax, 1			;system_write  
+	mov rdi, 1			;std_out  
+	mov rsi, cursor_save	;ANSI code
+	mov rdx, 3			;bytes to output
+	syscall			;make system call  
+
+	dec byte [f_count]
+
+	jmp reading_buffer
+
+up_cursor:
+	mov rax, 0 
+	mov [up_diff], rax
+
+	mov al, [l_diff]
+	cmp al, 0
+	jng reading_buffer
+
+	mov rbx, [f_count]
+	mov rdx, [info]
+
+;this loop goes to previous line before ending (\n)
+up_loop:
+	dec rbx
+	inc byte [up_diff]
+	mov rcx, up_diff
+
+	mov al, [rdx + rbx + 1]
+	cmp al, 0x0a
+	jne up_loop
+	dec byte [up_diff]
+	dec byte [up_diff]
+	mov [f_count], rbx
+	xor rdi, rdi
+
+;this loop gets length of line user wants to go
+up_loop_2:
+	dec rbx
+	inc rdi
+
+	cmp rbx, 0  
+	jle up_loop_3
+	mov al, [rdx + rbx - 1]
+	cmp al, 0x0a
+	jne up_loop_2
+
+;move f_count and if neccecery cursor too
+up_loop_3:
+	cmp rdi, [up_diff]
+	jl up_loop_3_2
 	
-		inc byte [f_count]
+	sub rdi, [up_diff]	
+	sub [f_count], rdi
+	jmp up_loop_3_end
 
-		jmp reading_buffer
+;move cursor
+up_loop_3_2:
+	sub [up_diff], rdi
+
+	;moving cursor backward 
+	mov rax, 1			;system_write  
+	mov rdi, 1			;std_out  
+	mov rsi, backward	;clear text
+	mov rdx, 3			;bytes to output
+	syscall			;make system call  
+
+	mov rbx, [up_diff] 
+	cmp rbx, 1
+	jg up_loop_3_2
+
+up_loop_3_end:
+	dec byte [l_diff]
+
+	;moving cursor up 
+	mov rax, 1			;system_write  
+	mov rdi, 1			;std_out  
+	mov rsi, up	;clear text
+	mov rdx, 3			;bytes to output
+	syscall			;make system call  
+
+	;saving cursor position
+	mov rax, 1			;system_write  
+	mov rdi, 1			;std_out  
+	mov rsi, cursor_save	;ANSI code
+	mov rdx, 3			;bytes to output
+	syscall			;make system call  
+
+	jmp reading_buffer
+
+down_cursor:
+	;see if we are at the end of file
+	mov rax, [f_count]											;moving f_count to rax
+	cmp rax, [test_type_buffer + st_size]		;comparing f_count to file length
+	jge reading_buffer											;if they match jump to reading_buffer
 	
-	left_cursor:
-		;check if we are at the start of buffer
-		mov rax, [f_count]							;length number where we are
-		cmp rax, 0											;comparing it to 0 (start address)
-		je reading_buffer								;jumping to reading_buffer
+	mov rbx, [info]													;moving info buffer to rbx	
+	mov rdx, [f_count]											;moving f_count to rdx
 
-		mov rbx, [info]									;saving info buffer in rbx register
-		mov byte al, [rbx + rax - 1]		;moving previous byte to al register
-		cmp al, 0x0a										;cehcking if it is \n 
-		je reading_buffer								;if yes jump to reding_buffer
+;loop to see if in file contains \n and making f_count same number that this \n is in buffer (number) or if it does not then don't move cursor
+down_loop:
+	inc rax																			;increase rax by 1 
 
-		;moving cursor forward 
-		mov rax, 1			;system_write  
-		mov rdi, 1			;std_out  
-		mov rsi, backward	;clear text
-		mov rdx, 3			;bytes to output
-		syscall			;make system call  
+	cmp rax, [test_type_buffer + st_size]				;see if we are at the end of file
+	jge reading_buffer													;jump to reading buffer it we are at the end or after end in buffer 
 
-		;saving cursor position
-		mov rax, 1			;system_write  
-		mov rdi, 1			;std_out  
-		mov rsi, cursor_save	;ANSI code
-		mov rdx, 3			;bytes to output
-		syscall			;make system call  
-
-		dec byte [f_count]
-
-		jmp reading_buffer
-
-	up_cursor:
-		mov rax, 0 
-		mov [up_diff], rax
-
-		mov al, [l_diff]
-		cmp al, 0
-		jng reading_buffer
-
-		mov rbx, [f_count]
-		mov rdx, [info]
+	mov byte sil, [rbx + rax - 1]								;see if we passed \n by one
+	cmp sil, 0x0a																;comparing it
 	
-	;this loop goes to previous line before ending (\n)
-	up_loop:
-		dec rbx
-		inc byte [up_diff]
-		mov rcx, up_diff
+	jne down_loop																;if we did end loop	
+	mov [f_count], rax
 
-		mov al, [rdx + rbx + 1]
-		cmp al, 0x0a
-		jne up_loop
-		dec byte [up_diff]
-		dec byte [up_diff]
-		mov [f_count], rbx
-		xor rdi, rdi
+loop_end:
+	xor spl, spl																;make spl 0
+	cmp rdx, 0																	;see if f_count is 0
+	je end_test																	;if it is jump to end of loop
 
-	;this loop gets length of line user wants to go
-	up_loop_2:
-		dec rbx
-		inc rdi
+;this loop is to get where cursor was before pressing down arrow from newline or start of buffer
+testing:
+	mov byte sil, [rbx + rdx]				;store byte to sil
+	cmp rdx, 0											;see if we are at the beggining of buffer
+	je end_test											;if we are end loop
+	mov byte sil, [rbx + rdx - 1]		;store byte to sil
+	cmp sil, 0x0a										;see if we are at the \n
+	je end_test											;if yes end the loop
+	dec rdx													;decrease rdx (virtual f_count) by 1
+	inc spl													;increase spl (will be used to increase f_count)
+	jmp testing											;start loop again
+end_test:
 
-		cmp rbx, 0  
-		jle up_loop_3
-		mov al, [rdx + rbx - 1]
-		cmp al, 0x0a
-		jne up_loop_2
+;this loop manages that when we go to newpage we have proper f_count and cursor will not be on empty area
+testing_2:
+	cmp spl, 0												;compare spl to 0
+	jle end_test_2										;if it is less or equal end loop 
+	dec spl														;decrease spl by 1 
 
-	;move f_count and if neccecery cursor too
-	up_loop_3:
-		cmp rdi, [up_diff]
-		jl up_loop_3_2
-		
-		sub rdi, [up_diff]	
-		sub [f_count], rdi
-		jmp up_loop_3_end
+	inc byte [f_count]								;increase f_count by 1
 	
-	;move cursor
-	up_loop_3_2:
-		sub [up_diff], rdi
+	mov rdx, [f_count]								;store f_count in rdx register
+	mov byte sil, [rbx + rdx]					;move byte in front of f_count to sil
+	cmp sil, 0x0a											;see if it is 0 (does not exist)
+	jne testing_2											;if it does exist start loop again
 
-		;moving cursor backward 
-		mov rax, 1			;system_write  
-		mov rdi, 1			;std_out  
-		mov rsi, backward	;clear text
-		mov rdx, 3			;bytes to output
-		syscall			;make system call  
+	dec byte [f_count]								;if it does not exist increase f_count by 1
 
-		mov rbx, [up_diff] 
-		cmp rbx, 1
-		jg up_loop_3_2
+	mov rax, 1												;system_write  
+	mov rdi, 1												;std_out  
+	mov rsi, backward									;clear text
+	mov rdx, 3												;bytes to output
+	syscall														;make system call  
 
-	up_loop_3_end:
-		dec byte [l_diff]
+	jmp testing_2											;start loop again
+end_test_2:
+	inc byte [l_diff]
 
-		;moving cursor up 
-		mov rax, 1			;system_write  
-		mov rdi, 1			;std_out  
-		mov rsi, up	;clear text
-		mov rdx, 3			;bytes to output
-		syscall			;make system call  
+	;moving cursor down 
+	mov rax, 1			;system_write  
+	mov rdi, 1			;std_out  
+	mov rsi, down	;clear text
+	mov rdx, 3			;bytes to output
+	syscall			;make system call  
 
-		;saving cursor position
-		mov rax, 1			;system_write  
-		mov rdi, 1			;std_out  
-		mov rsi, cursor_save	;ANSI code
-		mov rdx, 3			;bytes to output
-		syscall			;make system call  
+	;saving cursor position
+	mov rax, 1			;system_write  
+	mov rdi, 1			;std_out  
+	mov rsi, cursor_save	;ANSI code
+	mov rdx, 3			;bytes to output
+	syscall			;make system call  
 
-		jmp reading_buffer
-	
-	down_cursor:
-		;see if we are at the end of file
-		mov rax, [f_count]											;moving f_count to rax
-		cmp rax, [test_type_buffer + st_size]		;comparing f_count to file length
-		jge reading_buffer											;if they match jump to reading_buffer
-		
-		mov rbx, [info]													;moving info buffer to rbx	
-		mov rdx, [f_count]											;moving f_count to rdx
-
-	;loop to see if in file contains \n and making f_count same number that this \n is in buffer (number) or if it does not then don't move cursor
-	down_loop:
-		inc rax																			;increase rax by 1 
-
-		cmp rax, [test_type_buffer + st_size]				;see if we are at the end of file
-		jge reading_buffer													;jump to reading buffer it we are at the end or after end in buffer 
-
-		mov byte sil, [rbx + rax - 1]								;see if we passed \n by one
-		cmp sil, 0x0a																;comparing it
-		
-		jne down_loop																;if we did end loop	
-		mov [f_count], rax
-
-	loop_end:
-		xor spl, spl																;make spl 0
-		cmp rdx, 0																	;see if f_count is 0
-		je end_test																	;if it is jump to end of loop
-
-	;this loop is to get where cursor was before pressing down arrow from newline or start of buffer
-	testing:
-		mov byte sil, [rbx + rdx]				;store byte to sil
-		cmp rdx, 0											;see if we are at the beggining of buffer
-		je end_test											;if we are end loop
-		mov byte sil, [rbx + rdx - 1]		;store byte to sil
-		cmp sil, 0x0a										;see if we are at the \n
-		je end_test											;if yes end the loop
-		dec rdx													;decrease rdx (virtual f_count) by 1
-		inc spl													;increase spl (will be used to increase f_count)
-		jmp testing											;start loop again
-	end_test:
-
-	;this loop manages that when we go to newpage we have proper f_count and cursor will not be on empty area
-	testing_2:
-		cmp spl, 0												;compare spl to 0
-		jle end_test_2										;if it is less or equal end loop 
-		dec spl														;decrease spl by 1 
-
-		inc byte [f_count]								;increase f_count by 1
-		
-		mov rdx, [f_count]								;store f_count in rdx register
-		mov byte sil, [rbx + rdx]					;move byte in front of f_count to sil
-		cmp sil, 0x0a											;see if it is 0 (does not exist)
-		jne testing_2											;if it does exist start loop again
-
-		dec byte [f_count]								;if it does not exist increase f_count by 1
-
-		mov rax, 1												;system_write  
-		mov rdi, 1												;std_out  
-		mov rsi, backward									;clear text
-		mov rdx, 3												;bytes to output
-		syscall														;make system call  
-
-		jmp testing_2											;start loop again
-	end_test_2:
-		inc byte [l_diff]
-
-		;moving cursor down 
-		mov rax, 1			;system_write  
-		mov rdi, 1			;std_out  
-		mov rsi, down	;clear text
-		mov rdx, 3			;bytes to output
-		syscall			;make system call  
-
-		;saving cursor position
-		mov rax, 1			;system_write  
-		mov rdi, 1			;std_out  
-		mov rsi, cursor_save	;ANSI code
-		mov rdx, 3			;bytes to output
-		syscall			;make system call  
-
-		jmp reading_buffer 
+	jmp reading_buffer 
