@@ -516,11 +516,11 @@ testing_2:
 	inc byte [f_count]								;increase f_count by 1
 	
 	mov rdx, [f_count]								;store f_count in rdx register
-	mov byte sil, [rbx + rdx]					;move byte in front of f_count to sil
+	mov byte sil, [rbx + rdx - 1]					;move byte in front of f_count to sil
 	cmp sil, 0x0a											;see if it is 0 (does not exist)
 	jne testing_2											;if it does exist start loop again
 
-	dec byte [f_count]								;if it does not exist increase f_count by 1
+	dec byte [f_count]								;if it does not exist decrease f_count by 1
 
 	mov rax, 1												;system_write  
 	mov rdi, 1												;std_out  
