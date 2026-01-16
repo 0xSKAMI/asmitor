@@ -388,57 +388,58 @@ left_cursor:
 
 	jmp reading_buffer
 
+;this part of the code will manages cursor to go up properly
 up_cursor:
-	mov rax, 0 
-	mov [up_diff], rax
+	mov rax, 0							;make rax 0
+	mov [up_diff], rax			;make up_diff rax (up_diff is diffrence between current f_count and previous newline if it exist)
 
-	mov al, [l_diff]
-	cmp al, 0
-	jng reading_buffer
+	mov al, [l_diff]				;move l_diff (line diffrence) to al
+	cmp al, 0								;check if we are on the first line
+	jng reading_buffer			;if we are on the first line return to reading buffer
 
-	mov rbx, [f_count]
-	mov rdx, [info]
+	mov rbx, [f_count]			;move f_cout to rbx
+	mov rdx, [info]					;move info buffer to rdx
 
 ;this loop goes to previous line before ending (\n)
 up_loop:
-	dec rbx
-	inc byte [up_diff]
-	mov rcx, up_diff
+	dec rbx										;decrease rbx by 1
+	inc byte [up_diff]				;increase up_diff by 1
+	mov rcx, up_diff					;move up_diff value to rcx
 
-	mov al, [rdx + rbx + 1]
-	cmp al, 0x0a
-	jne up_loop
+	mov al, [rdx + rbx + 1]		;move value of rbx character in info buffer to al
+	cmp al, 0x0a							;if it is not the newline
+	jne up_loop								;then repeat the loop
+	dec byte [up_diff]				;if it is the newline then decrease up_diff by 2
 	dec byte [up_diff]
-	dec byte [up_diff]
-	mov [f_count], rbx
-	xor rdi, rdi
+	mov [f_count], rbx				;move new f_count (rbx) into real buffer
+	xor rdi, rdi							;make rdi 0
 
 ;this loop gets length of line user wants to go
 up_loop_2:
-	mov al, [rdx + rbx]
+	mov al, [rdx + rbx]				;see if we are on the newline and move to up_loop_3 (entire line is newline)
 	cmp al, 0x0a
 	je up_loop_3
 
-	dec rbx
-	inc rdi
+	dec rbx										;decrease rbx by 1
+	inc rdi										;decrease rdi (is used to store length of line we are moving on) by 1
 
-	cmp rbx, 0  
-	jle up_loop_3
-	mov al, [rdx + rbx - 1]
+	cmp rbx, 0							  ;compare rbx to 0
+	jle up_loop_3							;if it is less or equal to 0 then move to up_loop_3 (basically we are at the start of buffer)
+	mov al, [rdx + rbx - 1]		;check if we are at the start of the line by checking if previuous byte is newline
 	cmp al, 0x0a
 	jne up_loop_2
 
 ;move f_count and if neccecery cursor too
 up_loop_3:
-	cmp rdi, [up_diff]
-	jl up_loop_3_2
+	cmp rdi, [up_diff]			;compare rdi to up_diff
+	jl up_loop_3_2					;if rdi is less then move to up_loop_3_2 (means we have to move cursor to backwards)
 
-	cmp rdi, 0
-	je zero_case
+	cmp rdi, 0							;compare rdi to 0
+	je zero_case						;move to zero_case (basically is used when entire line is just newline)
 	
-	sub rdi, [up_diff]	
-	sub [f_count], rdi
-	jmp up_loop_3_end
+	sub rdi, [up_diff]			;subtract up_diff from rdi
+	sub [f_count], rdi			;subtract rdi from f_count
+	jmp up_loop_3_end				;move to up_loop_3_end
 
 zero_case:
 	inc byte [f_count]
