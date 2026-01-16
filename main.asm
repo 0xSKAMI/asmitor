@@ -332,17 +332,17 @@ right_cursor:
 	;see if byte in front of cursor exist (is not 0) or is \n (newline)
 	mov rbx, [info]										;moving info buffer to rbx
 	mov rax, [f_count]								;moving f_count value to rax
-	mov byte al, [rbx + rax + 1]			;moving byte in front of cursor to al
-	cmp al, 0x00											;compare it to 0
+	mov byte cl, [rbx + rax + 1]			;moving byte in front of cursor to al
+	cmp cl, 0x00											;compare it to 0
 
 	je reading_buffer									;if it equals 0 then jump to reading_buffer
 
-	mov byte al, [rbx + rax - 1]			;moving byte in front of cursor to al
-	cmp al, 0x00											;compare it to 0
+	mov byte cl, [rbx + rax]			;moving byte in front of cursor to al
+	cmp cl, 0x0a											;compare it to 0
 
 	je reading_buffer									;if it equals 0 then jump to reading_buffer
 
-	cmp al, 0x0a											;compare it to \n
+	cmp cl, 0x0a											;compare it to \n
 
 	je reading_buffer									;if it equals then jump to reading_buffer
 
@@ -436,19 +436,24 @@ up_loop_2:
 
 ;move f_count and if neccecery cursor too
 up_loop_3:
-	cmp rdi, [up_diff]			;compare rdi to up_diff
-	jl up_loop_3_2					;if rdi is less then move to up_loop_3_2 (means we have to move cursor to backwards)
-
 	cmp rdi, 0							;compare rdi to 0
 	je zero_case						;move to zero_case (basically is used when entire line is just newline)
 	
+	cmp rdi, [up_diff]			;compare rdi to up_diff
+	jl up_loop_3_2					;if rdi is less then move to up_loop_3_2 (means we have to move cursor to backwards)
+
 	sub rdi, [up_diff]			;subtract up_diff from rdi
 	sub [f_count], rdi			;subtract rdi from f_count
 	jmp up_loop_3_end				;move to up_loop_3_end
 
 zero_case:
 	inc byte [f_count]
-	jmp up_loop_3_end
+
+	mov rbx, [up_diff] 
+	cmp rbx, 0
+	je up_loop_3_end
+
+	jmp up_loop_3_2
 
 ;move cursor
 up_loop_3_2:
@@ -464,6 +469,9 @@ up_loop_3_2:
 	mov rbx, [up_diff] 
 	cmp rbx, 1
 	jg up_loop_3_2
+
+	cmp rdi, 0							;compare rdi to 0
+	je zero_case						;move to zero_case (basically is used when entire line is just newline)
 
 up_loop_3_end:
 	dec byte [l_diff]
