@@ -415,6 +415,10 @@ up_loop:
 
 ;this loop gets length of line user wants to go
 up_loop_2:
+	mov al, [rdx + rbx]
+	cmp al, 0x0a
+	je up_loop_3
+
 	dec rbx
 	inc rdi
 
@@ -428,9 +432,16 @@ up_loop_2:
 up_loop_3:
 	cmp rdi, [up_diff]
 	jl up_loop_3_2
+
+	cmp rdi, 0
+	je zero_case
 	
 	sub rdi, [up_diff]	
 	sub [f_count], rdi
+	jmp up_loop_3_end
+
+zero_case:
+	inc byte [f_count]
 	jmp up_loop_3_end
 
 ;move cursor
