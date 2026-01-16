@@ -337,6 +337,11 @@ right_cursor:
 
 	je reading_buffer									;if it equals 0 then jump to reading_buffer
 
+	mov byte al, [rbx + rax - 1]			;moving byte in front of cursor to al
+	cmp al, 0x00											;compare it to 0
+
+	je reading_buffer									;if it equals 0 then jump to reading_buffer
+
 	cmp al, 0x0a											;compare it to \n
 
 	je reading_buffer									;if it equals then jump to reading_buffer
@@ -504,20 +509,19 @@ down_loop:
 loop_end:
 	xor spl, spl																;make spl 0
 	cmp rdx, 0																	;see if f_count is 0
-	je end_test																	;if it is jump to end of loop
+	je testing_2																	;if it is jump to end of loop
 
-;this loop is to get where cursor was before pressing down arrow from newline or start of buffer
+;this loop is to get where cursor was from newline or start of buffer before pressing down arrow key
 testing:
 	mov byte sil, [rbx + rdx]				;store byte to sil
 	cmp rdx, 0											;see if we are at the beggining of buffer
-	je end_test											;if we are end loop
+	je testing_2											;if we are end loop
 	mov byte sil, [rbx + rdx - 1]		;store byte to sil
 	cmp sil, 0x0a										;see if we are at the \n
-	je end_test											;if yes end the loop
+	je testing_2											;if yes end the loop
 	dec rdx													;decrease rdx (virtual f_count) by 1
 	inc spl													;increase spl (will be used to increase f_count)
 	jmp testing											;start loop again
-end_test:
 
 ;this loop manages that when we go to newpage we have proper f_count and cursor will not be on empty area
 testing_2:
